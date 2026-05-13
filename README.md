@@ -149,6 +149,8 @@ This will detect your project's formatters and run them on all git-dirty files. 
 
 **Change model tiers** -- Swap models in agent frontmatter to match your budget. For example, use Sonnet everywhere for lower cost, or Opus everywhere for maximum quality.
 
+**Optional: Persistent memory** -- If you use a persistent memory MCP plugin like [Engram](https://github.com/Gentleman-Programming/engram), the Captain will automatically query prior session context before invoking the Architect. This reduces redundant codebase exploration on follow-up tasks, saving tokens. The pipeline works fully without it — no configuration needed if you don't use memory tools.
+
 ## The Pipeline
 
 Every task flows through a strict sequential pipeline. The Captain never skips ahead -- each step must complete before the next begins.

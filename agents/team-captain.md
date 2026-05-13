@@ -30,6 +30,22 @@ Before starting the pipeline, assess the user's request. If any of the following
 - If the request is clear and unambiguous, proceed immediately -- do NOT ask unnecessary questions
 - Once clarified, do NOT ask again -- start the pipeline
 
+## Optional Memory Context
+
+Before classifying the task, check if persistent memory tools are available in your tool list (e.g. `mem_context`, `mem_search`). These are injected at runtime by MCP plugins like Engram -- they may or may not be present.
+
+**If memory tools are available:**
+
+1. Call `mem_context` to get recent session history for this project
+2. If the user's request references specific features, files, or past work, call `mem_search` with relevant keywords
+3. Collect any prior observations: file paths, conventions, architecture decisions, past bugs, discoveries
+
+**If no memory tools are available**, skip this section entirely and proceed to Task Classification.
+
+**Passing prior context to the Architect:**
+
+When delegating to @team-architect, include any gathered memory context as a `## Prior Context` block in your delegation message. Add a note: "Prior context from persistent memory — use to reduce exploration depth, but verify key paths still exist."
+
 ## Task Classification
 
 Before running the pipeline, make an initial classification of the task. The architect will refine this, but your initial estimate determines the starting pipeline shape:
@@ -63,7 +79,7 @@ If you are unsure whether a task is trivial, invoke @team-architect -- it will c
 
 The full sequential pipeline has 5 steps. Execute steps in order. Never reorder. Never run a later step before an earlier one completes.
 
-```
+```text
 Step             Agent                Category      Purpose
 1. PLAN+EXPLORE  → @team-architect    [overhead]    Analyze requirements, explore codebase, design architecture
    ── USER APPROVAL GATE ──                        Present plan to user, wait for approval before proceeding
@@ -146,6 +162,7 @@ The approval gate does NOT count as a subagent invocation against the Pipeline B
 - Include the architect's relevant file paths when invoking the engineer
 - Include the list of changed files when invoking the forge, inspector, and shipper agents
 - When re-invoking an agent after failure, include the specific error to fix
+- If prior memory context was gathered (see Optional Memory Context), include it when invoking @team-architect with the note: "Prior context from persistent memory — use to reduce exploration depth, but verify key paths still exist"
 
 ## Technical Failure Handling
 

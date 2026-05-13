@@ -107,7 +107,7 @@ graph TB
 
 ## How We Reduced Token/Cost Usage
 
-We applied **8 strategies** across the system, consolidated from an initial 12-agent design down to 6.
+We applied **9 strategies** across the system, consolidated from an initial 12-agent design down to 6.
 
 ### 1. Agent Consolidation (12 -> 8 -> 6 agents)
 
@@ -117,7 +117,7 @@ Merged 6 agents into others: Architect stayed as Architect, Formatter -> Forge, 
 
 Not every task needs the most expensive model. The Forge and Inspector use Sonnet (mid-tier), Shipper uses Haiku 4.5 (light-tier). Only the Architect, Engineer, and Captain use Opus. This alone cuts cost significantly -- validation and coordination tasks don't need frontier reasoning.
 
-```
+```text
 Full  (Opus)       -> Captain, Architect, Engineer       [reasoning-heavy]
 Mid   (Sonnet)     -> Forge, Inspector                   [structured tasks]
 Light (Haiku 4.5) -> Shipper                            [mechanical tasks]
@@ -165,6 +165,14 @@ Each task classification has a hard cap on subagent invocations (including retri
 
 When the budget is exhausted, the pipeline stops and asks the user -- preventing runaway retry loops that silently burn tokens.
 
+### 9. Optional Memory-Assisted Exploration
+
+When persistent memory tools are available (e.g. [Engram](https://github.com/Gentleman-Programming/engram) MCP plugin), the Captain queries prior session context before invoking the Architect. If relevant observations exist (file paths, conventions, architecture decisions from previous sessions), they're passed to the Architect as supplementary context.
+
+The Architect uses this to **reduce exploration depth** — skipping re-reading files and conventions already known — while still verifying that referenced paths exist. This saves tokens on follow-up tasks in the same codebase without risking stale context.
+
+This is fully optional. Without memory tools, the pipeline behaves exactly as before.
+
 ## Efficiency Awareness (Inspired by GreenAgent)
 
 [GreenAgent](https://github.com/edgarasLegusVisma/greenagent) is a project that classifies LLM workflow steps as **useful work**, **overhead**, or **potential waste** -- tracking tokens, cost, energy, and carbon per step.
@@ -185,7 +193,7 @@ Every pipeline step is labeled with a GreenAgent-style category:
 
 The pipeline's final report includes an efficiency line:
 
-```
+```text
 Pipeline: 4/5 steps | 6 invocations (budget: 8) | useful-work: 2, validation: 2, overhead: 2
 ```
 
@@ -193,7 +201,7 @@ Pipeline: 4/5 steps | 6 invocations (budget: 8) | useful-work: 2, validation: 2,
 
 If a task was classified as "standard" but turned out to only touch 1-2 files with no design needed, the report notes it could have been simpler. This creates a feedback loop for improving future classification accuracy.
 
-```
+```text
 Retrospective: task could have been classified as simple (single-file change, no design needed).
 ```
 
