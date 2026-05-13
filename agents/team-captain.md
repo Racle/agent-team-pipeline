@@ -55,6 +55,8 @@ When a task is clearly **trivial** (typo, config change, rename, single-line fix
 
 **NEVER edit files or invoke implementation agents before the user approves the plan, even for trivial tasks.**
 
+**Git operations are NEVER self-handled.** Even for trivial tasks, always delegate commits to @team-shipper. The only self-handle exception is file edits, not git.
+
 If you are unsure whether a task is trivial, invoke @team-architect -- it will classify the task for you.
 
 ## Mandatory Pipeline
