@@ -34,7 +34,7 @@ The result: higher code quality, lower token costs, and a predictable workflow t
 **Linux / macOS (one command):**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Racle/agent-team-pipeline/main/scripts/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Racle/agent-team-pipeline/master/scripts/install.sh | bash
 ```
 
 Or manually:
