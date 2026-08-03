@@ -2,7 +2,7 @@
 description: Detects and runs the project's code formatters and build commands. Formats code first, then compiles assets, installs dependencies, and checks for build errors. Runs tests and fixes test files.
 mode: subagent
 hidden: true
-model: github-copilot/claude-sonnet-4.6
+model: github-copilot/claude-sonnet-5
 color: '#F97316'
 temperature: 0.1
 steps: 18

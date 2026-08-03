@@ -2,7 +2,7 @@
 description: Reviews code for quality, best practices, performance, maintainability, and security. Performs OWASP-based security audits on changed code. Read-only -- provides structured feedback without making changes.
 mode: subagent
 hidden: true
-model: github-copilot/claude-sonnet-4.6
+model: github-copilot/claude-sonnet-5
 color: '#F59E0B'
 temperature: 0.1
 steps: 12

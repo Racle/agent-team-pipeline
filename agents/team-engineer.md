@@ -2,6 +2,7 @@
 description: Writes and edits code following project conventions. Has full file and bash access. Loads relevant project skills based on the task. Updates doc comments and inline documentation for changed code.
 mode: subagent
 hidden: true
+model: github-copilot/claude-sonnet-5
 color: '#10B981'
 temperature: 0.3
 steps: 25
