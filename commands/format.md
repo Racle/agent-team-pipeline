@@ -2,7 +2,6 @@
 description: Format all modified files using detected project formatters
 agent: team-forge
 subtask: true
-model: github-copilot/claude-sonnet-4.6
 ---
 
 Run **only Phase 1 (Format)** from your instructions. Do NOT run Phase 2 (Build) or Phase 3 (Test).
