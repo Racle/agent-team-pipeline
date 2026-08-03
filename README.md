@@ -10,14 +10,16 @@ The result: higher code quality, lower token costs, and a predictable workflow t
 
 ## The Agent Roster
 
-| Agent         | Role                                                            | Model Tier        | Cost   |
-| ------------- | --------------------------------------------------------------- | ----------------- | ------ |
-| **Captain**   | Orchestrator -- classifies tasks, delegates, compresses context | Full (Opus)       | High   |
-| **Architect** | Explores codebase, analyzes requirements, designs architecture  | Full (Opus)       | High   |
-| **Engineer**  | Writes/edits code, updates documentation                        | Full (Opus)       | High   |
-| **Forge**     | Formats code, compiles assets, runs tests, fixes test files     | Mid (Sonnet)      | Medium |
-| **Inspector** | Code quality review + OWASP security audit                      | Mid (Sonnet)      | Medium |
-| **Shipper**   | Commits, pushes, analyzes CI pipelines                          | Light (Haiku 4.5) | Low    |
+| Agent         | Role                                                            | Model Tier          | Cost   |
+| ------------- | --------------------------------------------------------------- | ------------------- | ------ |
+| **Captain**   | Orchestrator -- classifies tasks, delegates, compresses context | Inherits default \* | High   |
+| **Architect** | Explores codebase, analyzes requirements, designs architecture  | Inherits default \* | High   |
+| **Engineer**  | Writes/edits code, updates documentation                        | Mid (Sonnet 5)      | Medium |
+| **Forge**     | Formats code, compiles assets, runs tests, fixes test files     | Mid (Sonnet 5)      | Medium |
+| **Inspector** | Code quality review + OWASP security audit                      | Mid (Sonnet 5)      | Medium |
+| **Shipper**   | Commits, pushes, analyzes CI pipelines                          | Light (Haiku 4.5)   | Low    |
+
+\* The Captain and Architect deliberately omit a `model:` key in their frontmatter, so they inherit whatever model you have selected in OpenCode (typically Opus). These two do the reasoning-heavy work, so they follow your default rather than hardcoding a premium tier into the repo.
 
 > [!NOTE]
 > We can switch the LLM model to any desired option, including its reasoning capabilities.
@@ -147,7 +149,7 @@ This will detect your project's formatters and run them on all git-dirty files. 
 
 **Add project-specific skills** -- Place skill files in your project's `.opencode/agents/skills/` directory. The agents will pick them up automatically for technology-specific guidance (e.g., Laravel, React, Rust conventions).
 
-**Change model tiers** -- Swap models in agent frontmatter to match your budget. For example, use Sonnet everywhere for lower cost, or Opus everywhere for maximum quality.
+**Change model tiers** -- Swap models in agent frontmatter to match your budget. For example, use Sonnet everywhere for lower cost, or Opus everywhere for maximum quality. Note that `team-captain.md` and `team-architect.md` have no `model:` key on purpose -- they follow whatever model you have selected in OpenCode. Add a `model:` line to either if you want to pin them explicitly.
 
 **Optional: Persistent memory** -- If you use a persistent memory MCP plugin like [Engram](https://github.com/Gentleman-Programming/engram), the Captain will automatically query prior session context before invoking the Architect. This reduces redundant codebase exploration on follow-up tasks, saving tokens. The pipeline works fully without it — no configuration needed if you don't use memory tools.
 
@@ -193,13 +195,13 @@ graph TD
     UserRequest([User Request]) --> Captain
 
     subgraph " "
-    Captain["<b>CAPTAIN</b><br/>(Opus)<br/>Classifies task, orchestrates pipeline,<br/>compresses context between steps"]
+    Captain["<b>CAPTAIN</b><br/>(inherits your default)<br/>Classifies task, orchestrates pipeline,<br/>compresses context between steps"]
 
-    Architect["<b>ARCHITECT</b><br/>(Opus)<br/>Explore codebase, analyze requirements,<br/>design architecture (conditional depth)"]
+    Architect["<b>ARCHITECT</b><br/>(inherits your default)<br/>Explore codebase, analyze requirements,<br/>design architecture (conditional depth)"]
 
     Gate["<b>APPROVAL GATE</b><br/>(user decides)<br/>Captain presents plan to user.<br/>Approve / Adjust / Reject"]
 
-    Engineer["<b>ENGINEER</b><br/>(Opus)<br/>Write/edit code, update docs<br/>-- also handles remediation fixes"]
+    Engineer["<b>ENGINEER</b><br/>(Sonnet)<br/>Write/edit code, update docs<br/>-- also handles remediation fixes"]
 
     Forge["<b>FORGE</b><br/>(Sonnet)<br/>Format, build, test, fix test files<br/>-- loops back to engineer on failure"]
 

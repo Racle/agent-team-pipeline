@@ -66,13 +66,13 @@ graph TB
  subgraph Execution_Pipeline[" "]
     direction LR
         UserApproval["<b>USER APPROVAL</b><br>approve/adjust"]
-        Architect["<b>ARCHITECT</b><br>(Opus)<br>plan"]
-        Engineer["<b>ENGINEER</b><br>(Opus)<br>code"]
+        Architect["<b>ARCHITECT</b><br>(your default)<br>plan"]
+        Engineer["<b>ENGINEER</b><br>(Sonnet)<br>code"]
         Forge["<b>FORGE</b><br>(Sonnet)<br>test"]
         Inspector["<b>INSPECTOR</b><br>(Sonnet)<br>review"]
         Shipper["<b>SHIPPER</b><br>(Haiku)<br>commit"]
   end
-    UserRequest(["User Request"]) --> Captain["<b>CAPTAIN</b><br>(Opus)<br>Classifies, delegates, compresses<br>context between every step"]
+    UserRequest(["User Request"]) --> Captain["<b>CAPTAIN</b><br>(your default)<br>Classifies, delegates, compresses<br>context between every step"]
     Captain --> Architect
     Architect --> UserApproval
     UserApproval --> Engineer
@@ -86,7 +86,7 @@ graph TB
 
 - **Every concern is separated** -- planning, coding, testing, reviewing, and shipping each have a dedicated agent
 - **Independent review** -- the Inspector never sees the Engineer's reasoning, only the code diff
-- **Model tiering** -- validation and shipping use cheaper models; only reasoning-heavy tasks use Opus
+- **Model tiering** -- validation, implementation, and shipping use cheaper models; only planning and orchestration run on your selected model
 - **Structured remediation** -- test failures route back to the Engineer, not handled ad-hoc by whoever is running
 - **Context compression** -- the Captain compresses output between every step, preventing context snowball
 - **Budget guardrails** -- hard caps on invocations prevent runaway retry loops
@@ -115,13 +115,15 @@ Merged 6 agents into others: Architect stayed as Architect, Formatter -> Forge, 
 
 ### 2. Model Tiering
 
-Not every task needs the most expensive model. The Forge and Inspector use Sonnet (mid-tier), Shipper uses Haiku 4.5 (light-tier). Only the Architect, Engineer, and Captain use Opus. This alone cuts cost significantly -- validation and coordination tasks don't need frontier reasoning.
+Not every task needs the most expensive model. The Engineer, Forge, and Inspector use Sonnet (mid-tier), Shipper uses Haiku 4.5 (light-tier). Only the Captain and Architect run on your selected model -- they omit a `model:` key entirely, so they inherit whatever you have configured in OpenCode (typically Opus). This alone cuts cost significantly -- validation, implementation, and coordination tasks don't all need frontier reasoning.
 
 ```text
-Full  (Opus)       -> Captain, Architect, Engineer       [reasoning-heavy]
-Mid   (Sonnet)     -> Forge, Inspector                   [structured tasks]
-Light (Haiku 4.5) -> Shipper                            [mechanical tasks]
+Inherited (your default) -> Captain, Architect            [reasoning-heavy]
+Mid       (Sonnet 5)     -> Engineer, Forge, Inspector    [structured tasks]
+Light     (Haiku 4.5)    -> Shipper                       [mechanical tasks]
 ```
+
+Leaving the two reasoning-heavy agents unpinned is deliberate: it keeps the premium tier a user choice rather than a hardcoded repo cost, and it means the pipeline adapts automatically when you switch your default model.
 
 ### 3. Context Compression
 
