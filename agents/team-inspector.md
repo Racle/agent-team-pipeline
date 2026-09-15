@@ -5,7 +5,6 @@ hidden: true
 model: github-copilot/claude-sonnet-5
 color: '#F59E0B'
 temperature: 0.1
-steps: 12
 permission:
   edit: deny
   bash: deny

@@ -4,7 +4,6 @@ mode: subagent
 hidden: true
 color: '#3B82F6'
 temperature: 0.5
-steps: 15
 reasoningEffort: high
 permission:
   edit: deny

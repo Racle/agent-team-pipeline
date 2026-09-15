@@ -5,7 +5,7 @@ hidden: true
 model: github-copilot/claude-haiku-4.5
 color: '#EC4899'
 temperature: 0.1
-steps: 10
+steps: 50
 permission:
   edit: deny
   bash:
