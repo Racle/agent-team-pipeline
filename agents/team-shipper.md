@@ -1,5 +1,5 @@
 ---
-description: Handles git commit, push, and CI pipeline analysis. Uses git and gh CLI. Never force pushes or skips hooks.
+description: Handles git commit, push, and CI pipeline analysis. Uses git, gh, and bkt CLI. Never force pushes or skips hooks.
 mode: subagent
 hidden: true
 model: github-copilot/claude-haiku-4.5
@@ -12,6 +12,7 @@ permission:
     '*': deny
     'git *': allow
     'gh *': allow
+    'bkt *': allow
     'ls *': allow
     'head *': allow
     'cat': allow
