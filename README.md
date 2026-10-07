@@ -14,9 +14,9 @@ The result: higher code quality, lower token costs, and a predictable workflow t
 | ------------- | --------------------------------------------------------------- | ------------------- | ------ |
 | **Captain**   | Orchestrator -- classifies tasks, delegates, compresses context | Inherits default \* | High   |
 | **Architect** | Explores codebase, analyzes requirements, designs architecture  | Inherits default \* | High   |
-| **Engineer**  | Writes/edits code, updates documentation                        | Mid (Sonnet 5)      | Medium |
-| **Forge**     | Formats code, compiles assets, runs tests, fixes test files     | Mid (Sonnet 5)      | Medium |
-| **Inspector** | Code quality review + OWASP security audit                      | Mid (Sonnet 5)      | Medium |
+| **Engineer**  | Writes/edits code, updates documentation                        | Mid (Sonnet 5.5)    | Medium |
+| **Forge**     | Formats code, compiles assets, runs tests, fixes test files     | Mid (Sonnet 5.5)    | Medium |
+| **Inspector** | Quality, security, and over-engineering review                  | Mid (Sonnet 5.5)    | Medium |
 | **Shipper**   | Commits, pushes, analyzes CI pipelines                          | Light (Haiku 4.5)   | Low    |
 
 \* The Captain and Architect deliberately omit a `model:` key in their frontmatter, so they inherit whatever model you have selected in OpenCode (typically Opus). These two do the reasoning-heavy work, so they follow your default rather than hardcoding a premium tier into the repo.
@@ -96,7 +96,7 @@ Once installed, just use OpenCode normally. The Captain handles everything:
 # 2. Presents the plan to you for approval
 # 3. Invokes Engineer to write the code
 # 4. Invokes Forge to format, build, and test
-# 5. Invokes Inspector for quality + security audit
+# 5. Invokes Inspector for quality + security + over-engineering review
 # 6. Invokes Shipper to commit (if requested)
 # -> Final report with efficiency summary
 ```
@@ -135,6 +135,13 @@ The pipeline includes a `/format` command that runs only the Forge's formatting 
 
 This will detect your project's formatters and run them on all git-dirty files. You can also pass specific files as arguments.
 
+The `/ponytail-review` command runs only the Inspector's over-engineering pass on your current changes (including untracked files) and outputs a Delete List. Use `/ponytail-audit` to scan the whole repo:
+
+```
+/ponytail-review
+/ponytail-audit
+```
+
 ### How It Behaves
 
 - **You talk to the Captain only.** The 5 subagents are hidden from the `@` autocomplete -- they're invoked automatically.
@@ -153,6 +160,17 @@ This will detect your project's formatters and run them on all git-dirty files. 
 
 **Optional: Persistent memory** -- If you use a persistent memory MCP plugin like [Engram](https://github.com/Gentleman-Programming/engram), the Captain will automatically query prior session context before invoking the Architect. This reduces redundant codebase exploration on follow-up tasks, saving tokens. The pipeline works fully without it — no configuration needed if you don't use memory tools.
 
+## Ponytail Principles
+
+The Architect and Engineer use a "least code that works" ladder (need it? / reuse codebase / stdlib / native platform / installed dep / one line / minimum new code):
+
+- **Architect** records a Ladder Result and Scope Challenge (inferred extras only, never explicit requirements)
+- **Engineer** writes the minimal diff; deliberate corner-cuts get a `ponytail: <ceiling>; upgrade: <path>` comment
+- **Forge** adds one small check for each non-trivial unit of logic, using existing test infrastructure
+- **Inspector** runs an Over-Engineering Pass and emits a Delete List; the Captain verifies high-priority fixes in a follow-up review
+
+Inspired by [Ponytail](https://github.com/DietrichGebert/ponytail) by Dietrich Gebert (MIT).
+
 ## The Pipeline
 
 Every task flows through a strict sequential pipeline. The Captain never skips ahead -- each step must complete before the next begins.
@@ -162,11 +180,11 @@ Every task flows through a strict sequential pipeline. The Captain never skips a
 ── USER APPROVAL GATE ──            Present plan to user, wait for approval
 2. IMPLEMENT     -> Engineer        Write the code following the plan
 3. BUILD+TEST    -> Forge           Format, build, run tests, fix test files
-4. REVIEW        -> Inspector       Quality + security audit
+4. REVIEW        -> Inspector       Quality + security + over-engineering review
 5. GIT           -> Shipper         Commit, push, check CI
 ```
 
-Tasks are classified into 4 tiers (trivial, simple, standard, complex), and the pipeline adapts -- trivial tasks skip the Architect (the Captain handles them directly), and review may be skipped for trivial changes based on the Architect's recommendation.
+Tasks are classified into 4 tiers (trivial, simple, standard, complex), and the pipeline adapts -- trivial tasks skip the Architect (the Captain handles them directly) and may skip review.
 
 After the Architect delivers its plan, the Captain **always presents the plan to the user for approval** before any code is written. The user can approve, adjust, or reject. This prevents wasted tokens on wrong implementations and keeps the user in control of architectural decisions.
 

@@ -119,7 +119,7 @@ Not every task needs the most expensive model. The Engineer, Forge, and Inspecto
 
 ```text
 Inherited (your default) -> Captain, Architect            [reasoning-heavy]
-Mid       (Sonnet 5)     -> Engineer, Forge, Inspector    [structured tasks]
+Mid       (Sonnet 5.5)   -> Engineer, Forge, Inspector    [structured tasks]
 Light     (Haiku 4.5)    -> Shipper                       [mechanical tasks]
 ```
 
@@ -239,6 +239,10 @@ All 5 subagents are hidden from the `@` autocomplete menu. They only appear when
 ### Session Persistence
 
 For longer tasks, the Captain maintains a `.opencode/resume.md` checkpoint file. If a session is interrupted, the user can say "resume" and pick up exactly where they left off -- no re-exploring the codebase or re-deriving the plan.
+
+## Why No Shared Ponytail File
+
+The ponytail rules are repeated per agent, tailored to each role, rather than shared. Agent markdown has no include mechanism, a global opencode `instructions` entry would leak the rules into non-pipeline agents, and `install.sh` only symlinks `agents/` and `commands/`.
 
 ## Results
 

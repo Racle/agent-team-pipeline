@@ -106,7 +106,7 @@ Use the project's preferred test command, applying filters to run only relevant 
 1. **Run relevant tests** -- execute tests related to the changed code, not the entire suite
 2. **Analyze failures** -- read the error output carefully
 3. **Fix test files** -- if a test fails due to a test-level issue, fix the test
-4. **Create missing tests** -- if the engineer created new code without tests, create them
+4. **Create missing tests** -- if the engineer added non-trivial logic without a runnable check, create the smallest relevant test
 5. **Re-run tests** -- verify fixes pass
 
 ### Test Rules
@@ -116,6 +116,8 @@ Use the project's preferred test command, applying filters to run only relevant 
 - When creating tests, use the project's scaffolding commands if available, otherwise create files following sibling test conventions
 - Use model factories, fixtures, or test data builders -- check existing test helpers before manually constructing test data
 - Follow existing test conventions: check sibling test files for patterns and style
+- Each new non-trivial unit of logic gets one small runnable check in the existing test style; trivial one-liners need none
+- No new test frameworks, fixtures, or helpers unless required
 - Run the minimum number of tests needed -- use filters or specific files, not the full suite
 
 ## Output Format

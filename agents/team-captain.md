@@ -118,6 +118,8 @@ After each subagent returns, you MUST compress its output before passing context
 **What to preserve in full:**
 
 - Architect's Implementation Steps and Design Spec (verbatim)
+- Architect's Ladder Result and Scope Challenge
+- Inspector's High Delete List items
 - Exact file paths from architect's exploration
 - Exact error messages from forge
 
@@ -142,6 +144,7 @@ After the Architect completes (or after you assess a trivial task), you MUST pre
 - Implementation steps (numbered list from architect's plan, or your brief description for trivial tasks)
 - Design spec summary (1-2 sentences, only if complex)
 - Risks or trade-offs (if any)
+- Items from the architect's "## Scope Challenge" section (skip if it says "None") -- ask each as yes/no within the approve/adjust question
 
 Then ask: "Approve this plan, adjust it, or reject?"
 
@@ -160,6 +163,7 @@ The approval gate does NOT count as a subagent invocation against the Pipeline B
 - Always pass the compressed context from previous steps to the next subagent
 - Include the architect's task breakdown and Design Spec (if any) when invoking the engineer
 - Include the architect's relevant file paths when invoking the engineer
+- Include the approved plan when invoking the inspector so planned items are not flagged as scope creep
 - Include the list of changed files when invoking the forge, inspector, and shipper agents
 - When re-invoking an agent after failure, include the specific error to fix
 - If prior memory context was gathered (see Optional Memory Context), include it when invoking @team-architect with the note: "Prior context from persistent memory — use to reduce exploration depth, but verify key paths still exist"
@@ -184,16 +188,17 @@ When BUILD+TEST or REVIEW returns **code issues** (failing tests, lint errors, r
 3. After engineer fixes, re-invoke @team-forge to verify
 4. Max 2 remediation cycles. If still failing after 2 cycles, report to user.
 
-**Review findings (critical/high):**
+**Review findings (critical/high, including Delete List High):**
 
 1. @team-inspector reports critical or high severity issues
 2. Send findings to @team-engineer with instruction to fix
 3. After engineer fixes, re-invoke @team-forge (format + test the fixes)
-4. Max 1 remediation cycle for review. If new critical findings emerge, report to user.
+4. Re-invoke @team-inspector on the updated changes and approved plan to verify the findings are resolved
+5. Max 1 remediation cycle for review. If critical/high findings remain or new ones emerge, stop and report to the user; do not proceed to GIT.
 
-**Review findings (medium/low):** Report to user in the summary. Do NOT loop back unless user requests it.
+**Review findings (medium/low, including medium/low Delete List):** Report to user in the summary. Do NOT loop back unless user requests it.
 
-Each loop iteration (engineer + forge/inspector) counts as 2 invocations against the Pipeline Budget.
+Each review remediation cycle (engineer + forge + inspector) counts as 3 invocations against the Pipeline Budget. Test/build remediation (engineer + forge) counts as 2. Delete List findings use the same review budget.
 
 ## Pipeline Budget
 

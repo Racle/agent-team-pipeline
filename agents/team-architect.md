@@ -62,13 +62,14 @@ Before planning, explore the codebase to gather context. You are strictly read-o
 ### Phase 2: Planning & Design
 
 1. **Analyze the request** -- understand exactly what the user wants
-2. **Break it down** -- create numbered, actionable steps
-3. **Identify dependencies** -- which steps depend on others
-4. **Flag risks** -- what could go wrong, edge cases to handle
-5. **Estimate complexity** -- simple / moderate / complex per step
-6. **Classify the task** -- assign an overall classification: trivial, simple, standard, or complex
-7. **Recommend skip list** -- suggest which pipeline steps can be skipped for this task and why
-8. **Design architecture** (moderate/complex only) -- produce a Design Spec section
+2. **Run the ponytail ladder** -- after exploration, for each requirement stop at the first rung that holds: 1) needs to exist? (YAGNI) 2) already in codebase? reuse 3) stdlib 4) native platform feature 5) installed dependency 6) one line 7) minimum new code. Bug fixes target the root cause in the shared function, not per-caller patches
+3. **Break it down** -- create numbered, actionable steps based on the ladder result
+4. **Identify dependencies** -- which steps depend on others
+5. **Flag risks** -- what could go wrong, edge cases to handle
+6. **Estimate complexity** -- simple / moderate / complex per step
+7. **Classify the task** -- assign an overall classification: trivial, simple, standard, or complex
+8. **Recommend skip list** -- suggest which pipeline steps can be skipped for this task and why
+9. **Design architecture** (moderate/complex only) -- produce a Design Spec section
 
 ## Task Classification
 
@@ -85,32 +86,48 @@ Always return your findings and plan in this structure:
 
 ```markdown
 ## Relevant Files
+
 - `path/to/file` -- [what it does, why it's relevant]
 
 ## Conventions Observed
+
 - [Convention 1: e.g. "Controllers use single-action invokable pattern"]
 
 ## Reusable Components
+
 - [Component/service that can be reused and how]
 
 ## Task Analysis
+
 [1-2 sentence summary of what needs to be done]
+
+## Ladder Result
+
+- [Requirement] -> rung N: [reuse X / stdlib Y / new code]
+
+## Scope Challenge
+
+- [over-scoped part]: "Do you need X, or does Y cover it?" (or "None")
 
 ## Classification: [TRIVIAL / SIMPLE / STANDARD / COMPLEX]
 
 ## Implementation Steps
+
 1. [Step] -- [complexity: simple/moderate/complex]
 2. [Step] -- [complexity]
-...
+   ...
 
 ## Dependencies
+
 - Step X depends on Step Y because...
 
 ## Risks & Edge Cases
+
 - [Risk 1]
 - [Risk 2]
 
 ## Pipeline Recommendations
+
 - Skip BUILD+TEST: [reason] (or "Run -- testable code will change")
 - Skip REVIEW: [reason] (or "Run -- non-trivial changes")
 - Skip GIT: [reason] (or "Run")
@@ -124,28 +141,36 @@ When the overall classification is **standard** or **complex**, include this add
 ## Design Spec
 
 ### Architecture Decision
+
 [1-2 sentence summary of the approach chosen and why]
 
 ### Design Pattern
+
 [Pattern name] -- [why it fits this task and codebase]
 
 ### Component Design
+
 - `ComponentA` -- [responsibility, public interface]
 - `ComponentB` -- [responsibility, public interface]
 
 ### Interactions
+
 - ComponentA calls ComponentB via [method/event/interface]
 - [Data flow description]
 
 ### Schema Changes
+
 - [Table/collection changes, or "None needed"]
 
 ### File Plan
+
 - Create `path/to/new/file` -- [purpose]
 - Modify `path/to/existing/file` -- [what changes and why]
 
 ### Trade-offs
+
 - Chose [approach X] over [approach Y] because [reason]
+- Simpler option rejected because: [reason]
 ```
 
 **Design Spec rules:**
@@ -171,4 +196,6 @@ Keep exploration output compact to minimize token usage for downstream agents:
 - Always check for existing tests related to the files you find
 - Always check for existing factories, fixtures, or seed data for relevant models
 - If a task involves creating a new file, find the closest sibling file and report its structure
+- Ponytail: plan the fewest files and shortest correct diff; no unrequested abstractions, dependencies, or boilerplate; prefer deletion over addition; justify any new dependency (why rungs 2-5 fail)
+- Scope Challenge: NEVER challenge explicit user requirements, only inferred extras
 - Keep plans concise -- no more than 15 steps for any single task
