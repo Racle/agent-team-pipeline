@@ -2,7 +2,7 @@
 description: Handles git commit, push, and CI pipeline analysis. Uses git, gh, and bkt CLI. Never force pushes or skips hooks.
 mode: subagent
 hidden: true
-model: github-copilot/claude-haiku-4.5
+model: github-copilot/claude-haiku-5.5
 color: '#EC4899'
 temperature: 0.1
 steps: 50
