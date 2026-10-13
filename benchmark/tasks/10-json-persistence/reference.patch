@@ -1,0 +1,120 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..92f1d1c 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -3,6 +3,7 @@ package main
+ import (
+ 	"encoding/json"
+ 	"net/http"
++	"os"
+ 	"strconv"
+ )
+ 
+@@ -17,7 +18,11 @@ type server struct {
+ 
+ // NewServer returns the HTTP handler for the notes API, backed by a fresh in-memory store.
+ func NewServer() http.Handler {
+-	s := &server{store: NewStore()}
++	store := NewStore()
++	if f := os.Getenv("DATA_FILE"); f != "" {
++		store = NewFileStore(f)
++	}
++	s := &server{store: store}
+ 	mux := http.NewServeMux()
+ 	mux.HandleFunc("GET /api/notes", s.list)
+ 	mux.HandleFunc("POST /api/notes", s.create)
+diff --git a/api/store.go b/api/store.go
+index f16ef52..10c2c58 100644
+--- a/api/store.go
++++ b/api/store.go
+@@ -1,6 +1,9 @@
+ package main
+ 
+ import (
++	"encoding/json"
++	"os"
++	"path/filepath"
+ 	"sort"
+ 	"sync"
+ 	"time"
+@@ -20,6 +23,7 @@ type Store struct {
+ 	mu     sync.Mutex
+ 	nextID int
+ 	notes  map[int]Note
++	file   string // empty: in-memory only
+ }
+ 
+ // NewStore returns an empty Store.
+@@ -27,6 +31,49 @@ func NewStore() *Store {
+ 	return &Store{nextID: 1, notes: map[int]Note{}}
+ }
+ 
++// NewFileStore returns a Store persisted to path; existing notes are loaded if the file exists.
++func NewFileStore(path string) *Store {
++	s := NewStore()
++	s.file = path
++	if b, err := os.ReadFile(path); err == nil {
++		var list []Note
++		if json.Unmarshal(b, &list) == nil {
++			for _, n := range list {
++				s.notes[n.ID] = n
++				if n.ID >= s.nextID {
++					s.nextID = n.ID + 1
++				}
++			}
++		}
++	}
++	return s
++}
++
++// save writes all notes atomically (temp file + rename). Caller holds s.mu.
++func (s *Store) save() {
++	if s.file == "" {
++		return
++	}
++	list := make([]Note, 0, len(s.notes))
++	for _, n := range s.notes {
++		list = append(list, n)
++	}
++	sort.Slice(list, func(i, j int) bool { return list[i].ID < list[j].ID })
++	b, err := json.Marshal(list)
++	if err != nil {
++		return
++	}
++	tmp, err := os.CreateTemp(filepath.Dir(s.file), ".tmp-*")
++	if err != nil {
++		return
++	}
++	_, werr := tmp.Write(b)
++	cerr := tmp.Close()
++	if werr != nil || cerr != nil || os.Rename(tmp.Name(), s.file) != nil {
++		_ = os.Remove(tmp.Name())
++	}
++}
++
+ // List returns all notes ordered by ID.
+ func (s *Store) List() []Note {
+ 	s.mu.Lock()
+@@ -55,6 +102,7 @@ func (s *Store) Create(title, body string) Note {
+ 	n := Note{ID: s.nextID, Title: title, Body: body, CreatedAt: now, UpdatedAt: now}
+ 	s.nextID++
+ 	s.notes[n.ID] = n
++	s.save()
+ 	return n
+ }
+ 
+@@ -68,6 +116,7 @@ func (s *Store) Update(id int, title, body string) (Note, bool) {
+ 	}
+ 	n.Title, n.Body, n.UpdatedAt = title, body, time.Now().UTC()
+ 	s.notes[id] = n
++	s.save()
+ 	return n, true
+ }
+ 
+@@ -77,5 +126,6 @@ func (s *Store) Delete(id int) bool {
+ 	defer s.mu.Unlock()
+ 	_, ok := s.notes[id]
+ 	delete(s.notes, id)
++	s.save()
+ 	return ok
+ }

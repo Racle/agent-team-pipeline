@@ -1,0 +1,164 @@
+{
+  "info": {
+    "id": "ses_f7f7bf833ffea8uK5zeARa7kcr",
+    "slug": "kind-wizard",
+    "projectID": "global",
+    "directory": "/tmp/sample",
+    "path": "tmp/sample",
+    "parentID": "ses_f7f7dd943ffeFMGnvvklAXnkeQ",
+    "title": "Investigate app.example.com slowness (@team-engineer subagent)",
+    "agent": "team-engineer",
+    "model": {
+      "id": "claude-sonnet-5",
+      "providerID": "github-copilot",
+      "variant": "default"
+    },
+    "version": "1.18.29",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "cost": 0.2700419,
+    "tokens": {
+      "input": 22,
+      "output": 5741,
+      "reasoning": 267,
+      "cache": {
+        "read": 434502,
+        "write": 49207
+      }
+    },
+    "permission": [
+      {
+        "permission": "todowrite",
+        "pattern": "*",
+        "action": "deny"
+      },
+      {
+        "permission": "task",
+        "pattern": "*",
+        "action": "deny"
+      }
+    ],
+    "time": {
+      "created": 1788862531532,
+      "updated": 1788862616446
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1788862531545
+        },
+        "agent": "team-engineer",
+        "model": {
+          "providerID": "github-copilot",
+          "modelID": "claude-sonnet-5"
+        },
+        "id": "msg_0808407d7001XXvKD2ahG1NHYJ",
+        "sessionID": "ses_f7f7bf833ffea8uK5zeARa7kcr"
+      },
+      "parts": []
+    },
+    {
+      "info": {
+        "parentID": "msg_0808407d7001XXvKD2ahG1NHYJ",
+        "role": "assistant",
+        "mode": "team-engineer",
+        "agent": "team-engineer",
+        "cost": 0.078599,
+        "tokens": {
+          "total": 31002,
+          "input": 2,
+          "output": 127,
+          "reasoning": 19,
+          "cache": {
+            "write": 30854,
+            "read": 0
+          }
+        },
+        "modelID": "claude-sonnet-5",
+        "providerID": "github-copilot",
+        "time": {
+          "created": 1788862531637,
+          "completed": 1788862534329
+        },
+        "finish": "tool-calls",
+        "id": "msg_080840835001liypyG1CtBNWyU",
+        "sessionID": "ses_f7f7bf833ffea8uK5zeARa7kcr"
+      },
+      "parts": [
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 31002,
+            "input": 2,
+            "output": 127,
+            "reasoning": 19,
+            "cache": {
+              "write": 30854,
+              "read": 0
+            }
+          },
+          "cost": 0.078599,
+          "id": "prt_0808412b3001ayzseNH9OZJx7c",
+          "sessionID": "ses_f7f7bf833ffea8uK5zeARa7kcr",
+          "messageID": "msg_080840835001liypyG1CtBNWyU"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0808407d7001XXvKD2ahG1NHYJ",
+        "role": "assistant",
+        "mode": "team-engineer",
+        "agent": "team-engineer",
+        "cost": 0.0385923,
+        "tokens": {
+          "total": 43112,
+          "input": 2,
+          "output": 131,
+          "reasoning": 106,
+          "cache": {
+            "write": 12019,
+            "read": 30854
+          }
+        },
+        "modelID": "claude-sonnet-5",
+        "providerID": "github-copilot",
+        "time": {
+          "created": 1788862534333,
+          "completed": 1788862538431
+        },
+        "finish": "tool-calls",
+        "id": "msg_0808412bd001KG4NtT0T6NGmqI",
+        "sessionID": "ses_f7f7bf833ffea8uK5zeARa7kcr"
+      },
+      "parts": [
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 43112,
+            "input": 2,
+            "output": 131,
+            "reasoning": 106,
+            "cache": {
+              "write": 12019,
+              "read": 30854
+            }
+          },
+          "cost": 0.0385923,
+          "id": "prt_0808422bc001D0Xv637YxLFwhq",
+          "sessionID": "ses_f7f7bf833ffea8uK5zeARa7kcr",
+          "messageID": "msg_0808412bd001KG4NtT0T6NGmqI"
+        }
+      ]
+    }
+  ]
+}
+

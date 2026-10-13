@@ -1,0 +1,164 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..fbf592e 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -4,6 +4,8 @@ import (
+ 	"encoding/json"
+ 	"net/http"
+ 	"strconv"
++	"strings"
++	"sync/atomic"
+ )
+ 
+ type noteInput struct {
+@@ -12,7 +14,8 @@ type noteInput struct {
+ }
+ 
+ type server struct {
+-	store *Store
++	store    *Store
++	requests atomic.Int64
+ }
+ 
+ // NewServer returns the HTTP handler for the notes API, backed by a fresh in-memory store.
+@@ -24,7 +27,15 @@ func NewServer() http.Handler {
+ 	mux.HandleFunc("GET /api/notes/{id}", s.get)
+ 	mux.HandleFunc("PUT /api/notes/{id}", s.update)
+ 	mux.HandleFunc("DELETE /api/notes/{id}", s.delete)
+-	return mux
++	mux.HandleFunc("POST /api/notes/{id}/like", s.like)
++	mux.HandleFunc("POST /api/notes/merge", s.merge)
++	mux.HandleFunc("GET /api/stats", s.stats)
++	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if strings.HasPrefix(r.URL.Path, "/api/notes") {
++			s.requests.Add(1)
++		}
++		mux.ServeHTTP(w, r)
++	})
+ }
+ 
+ func writeJSON(w http.ResponseWriter, status int, v any) {
+@@ -108,3 +119,41 @@ func (s *server) delete(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 	w.WriteHeader(http.StatusNoContent)
+ }
++
++func (s *server) like(w http.ResponseWriter, r *http.Request) {
++	id, ok := noteID(w, r)
++	if !ok {
++		return
++	}
++	n, found := s.store.Like(id)
++	if !found {
++		writeError(w, http.StatusNotFound, "note not found")
++		return
++	}
++	writeJSON(w, http.StatusOK, n)
++}
++
++func (s *server) merge(w http.ResponseWriter, r *http.Request) {
++	var in struct {
++		From int `json:"from"`
++		Into int `json:"into"`
++	}
++	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
++		writeError(w, http.StatusBadRequest, "invalid JSON body")
++		return
++	}
++	if in.From == in.Into {
++		writeError(w, http.StatusBadRequest, "cannot merge a note into itself")
++		return
++	}
++	n, found := s.store.Merge(in.From, in.Into)
++	if !found {
++		writeError(w, http.StatusNotFound, "note not found")
++		return
++	}
++	writeJSON(w, http.StatusOK, n)
++}
++
++func (s *server) stats(w http.ResponseWriter, r *http.Request) {
++	writeJSON(w, http.StatusOK, map[string]int64{"requests": s.requests.Load(), "notes": int64(s.store.Count())})
++}
+diff --git a/api/server_test.go b/api/server_test.go
+index 0ea6d62..0e07b4a 100644
+--- a/api/server_test.go
++++ b/api/server_test.go
+@@ -69,3 +69,24 @@ func TestErrors(t *testing.T) {
+ 		t.Fatalf("delete missing: %d", rec.Code)
+ 	}
+ }
++
++func TestLikeMergeStats(t *testing.T) {
++	h := NewServer()
++	do(t, h, "POST", "/api/notes", `{"title":"a","body":"x"}`)
++	do(t, h, "POST", "/api/notes", `{"title":"b","body":"y"}`)
++	do(t, h, "POST", "/api/notes/1/like", "")
++	do(t, h, "POST", "/api/notes/2/like", "")
++	rec := do(t, h, "POST", "/api/notes/merge", `{"from":1,"into":2}`)
++	var n Note
++	_ = json.Unmarshal(rec.Body.Bytes(), &n)
++	if rec.Code != 200 || n.Likes != 2 || n.Body != "y\nx" {
++		t.Fatalf("merge: %d %+v", rec.Code, n)
++	}
++	if rec := do(t, h, "POST", "/api/notes/merge", `{"from":1,"into":2}`); rec.Code != 404 {
++		t.Fatalf("merge missing: %d", rec.Code)
++	}
++	rec = do(t, h, "GET", "/api/stats", "")
++	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"notes":1`) {
++		t.Fatalf("stats: %d %s", rec.Code, rec.Body.String())
++	}
++}
+diff --git a/api/store.go b/api/store.go
+index f16ef52..94bdd6a 100644
+--- a/api/store.go
++++ b/api/store.go
+@@ -11,6 +11,7 @@ type Note struct {
+ 	ID        int       `json:"id"`
+ 	Title     string    `json:"title"`
+ 	Body      string    `json:"body"`
++	Likes     int       `json:"likes"`
+ 	CreatedAt time.Time `json:"created_at"`
+ 	UpdatedAt time.Time `json:"updated_at"`
+ }
+@@ -79,3 +80,40 @@ func (s *Store) Delete(id int) bool {
+ 	delete(s.notes, id)
+ 	return ok
+ }
++
++// Like atomically increments the note's likes.
++func (s *Store) Like(id int) (Note, bool) {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	n, ok := s.notes[id]
++	if !ok {
++		return Note{}, false
++	}
++	n.Likes++
++	s.notes[id] = n
++	return n, true
++}
++
++// Merge atomically folds note `from` into note `into` and deletes `from`. It reports false when either note is missing.
++func (s *Store) Merge(from, into int) (Note, bool) {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	f, okF := s.notes[from]
++	n, okN := s.notes[into]
++	if !okF || !okN {
++		return Note{}, false
++	}
++	n.Body += "\n" + f.Body
++	n.Likes += f.Likes
++	n.UpdatedAt = time.Now().UTC()
++	s.notes[into] = n
++	delete(s.notes, from)
++	return n, true
++}
++
++// Count returns the number of notes.
++func (s *Store) Count() int {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	return len(s.notes)
++}

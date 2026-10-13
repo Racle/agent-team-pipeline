@@ -1,0 +1,8 @@
+results/
+fixture/web/node_modules/
+fixture/web/dist/
+bin/
+# proprietary: tasks for the real repos, pinned shas, baselines
+tasks-private/
+repos.env
+cmd/bench/bench

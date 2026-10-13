@@ -1,0 +1,23 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..0eb03ef 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -4,6 +4,7 @@ import (
+ 	"encoding/json"
+ 	"net/http"
+ 	"strconv"
++	"strings"
+ )
+ 
+ type noteInput struct {
+@@ -52,6 +53,10 @@ func decodeInput(w http.ResponseWriter, r *http.Request) (noteInput, bool) {
+ 		writeError(w, http.StatusBadRequest, "invalid JSON body")
+ 		return in, false
+ 	}
++	if strings.TrimSpace(in.Title) == "" {
++		writeError(w, http.StatusBadRequest, "title is required")
++		return in, false
++	}
+ 	return in, true
+ }
+ 

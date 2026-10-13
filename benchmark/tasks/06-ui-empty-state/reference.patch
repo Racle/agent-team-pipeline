@@ -1,0 +1,12 @@
+diff --git a/web/src/NotesList.tsx b/web/src/NotesList.tsx
+index 0c66b97..66f2a07 100644
+--- a/web/src/NotesList.tsx
++++ b/web/src/NotesList.tsx
+@@ -6,6 +6,7 @@ interface Props {
+ }
+ 
+ export default function NotesList({ notes, onDelete }: Props) {
++  if (notes.length === 0) return <p>No notes yet</p>
+   return (
+     <ul>
+       {notes.map(n => (

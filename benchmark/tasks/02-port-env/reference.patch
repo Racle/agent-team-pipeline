@@ -1,0 +1,19 @@
+diff --git a/api/main.go b/api/main.go
+index 93cc429..efb6c4c 100644
+--- a/api/main.go
++++ b/api/main.go
+@@ -3,10 +3,14 @@ package main
+ import (
+ 	"log"
+ 	"net/http"
++	"os"
+ )
+ 
+ func main() {
+ 	addr := ":8080"
++	if p := os.Getenv("PORT"); p != "" {
++		addr = ":" + p
++	}
+ 	log.Printf("notes API listening on %s", addr)
+ 	log.Fatal(http.ListenAndServe(addr, NewServer()))
+ }

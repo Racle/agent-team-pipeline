@@ -1,0 +1,229 @@
+{
+  "info": {
+    "id": "ses_f7f7dd943ffeFMGnvvklAXnkeQ",
+    "slug": "cosmic-cabin",
+    "projectID": "global",
+    "directory": "/tmp/sample",
+    "path": "tmp/sample",
+    "title": "app.example.com slowness investigation",
+    "agent": "team-captain",
+    "model": {
+      "id": "claude-opus-5",
+      "providerID": "github-copilot"
+    },
+    "version": "1.18.29",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "cost": 12.70373775,
+    "tokens": {
+      "input": 216,
+      "output": 79210,
+      "reasoning": 35073,
+      "cache": {
+        "read": 14791678,
+        "write": 391959
+      }
+    },
+    "time": {
+      "created": 1788862408380,
+      "updated": 1788866021591
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1788862408410
+        },
+        "agent": "team-captain",
+        "model": {
+          "providerID": "github-copilot",
+          "modelID": "claude-opus-5"
+        },
+        "id": "msg_0808226da001CHymEc587CbnD8",
+        "sessionID": "ses_f7f7dd943ffeFMGnvvklAXnkeQ"
+      },
+      "parts": []
+    },
+    {
+      "info": {
+        "parentID": "msg_0808226da001CHymEc587CbnD8",
+        "role": "assistant",
+        "mode": "team-captain",
+        "agent": "team-captain",
+        "cost": 0.2243975,
+        "tokens": {
+          "total": 35103,
+          "input": 2,
+          "output": 113,
+          "reasoning": 154,
+          "cache": {
+            "write": 34834,
+            "read": 0
+          }
+        },
+        "modelID": "claude-opus-5",
+        "providerID": "github-copilot",
+        "time": {
+          "created": 1788862408458,
+          "completed": 1788862414877
+        },
+        "finish": "tool-calls",
+        "id": "msg_08082270a001B4x1fgsu2Ek92V",
+        "sessionID": "ses_f7f7dd943ffeFMGnvvklAXnkeQ"
+      },
+      "parts": [
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 35103,
+            "input": 2,
+            "output": 113,
+            "reasoning": 154,
+            "cache": {
+              "write": 34834,
+              "read": 0
+            }
+          },
+          "cost": 0.2243975,
+          "id": "prt_0808240130012KwZyQBfDIpXS7",
+          "sessionID": "ses_f7f7dd943ffeFMGnvvklAXnkeQ",
+          "messageID": "msg_08082270a001B4x1fgsu2Ek92V"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0808226da001CHymEc587CbnD8",
+        "role": "assistant",
+        "mode": "team-captain",
+        "agent": "team-captain",
+        "cost": 0.06455825,
+        "tokens": {
+          "total": 40472,
+          "input": 2,
+          "output": 476,
+          "reasoning": 159,
+          "cache": {
+            "write": 5001,
+            "read": 34834
+          }
+        },
+        "modelID": "claude-opus-5",
+        "providerID": "github-copilot",
+        "time": {
+          "created": 1788862414882,
+          "completed": 1788862425960
+        },
+        "finish": "stop",
+        "id": "msg_080824022001XlCN5Yjp6ljtpa",
+        "sessionID": "ses_f7f7dd943ffeFMGnvvklAXnkeQ"
+      },
+      "parts": [
+        {
+          "reason": "stop",
+          "type": "step-finish",
+          "tokens": {
+            "total": 40472,
+            "input": 2,
+            "output": 476,
+            "reasoning": 159,
+            "cache": {
+              "write": 5001,
+              "read": 34834
+            }
+          },
+          "cost": 0.06455825,
+          "id": "prt_080826b62001jCfl8gC9iS2sQt",
+          "sessionID": "ses_f7f7dd943ffeFMGnvvklAXnkeQ",
+          "messageID": "msg_080824022001XlCN5Yjp6ljtpa"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0808351fd001tlqjkEL13sDyky",
+        "role": "assistant",
+        "mode": "team-captain",
+        "agent": "team-captain",
+        "cost": 0.11264675,
+        "tokens": {
+          "total": 45353,
+          "input": 2,
+          "output": 2586,
+          "reasoning": 720,
+          "cache": {
+            "write": 1559,
+            "read": 40486
+          }
+        },
+        "modelID": "claude-opus-5",
+        "providerID": "github-copilot",
+        "time": {
+          "created": 1788862485002,
+          "completed": 1788862616435
+        },
+        "finish": "tool-calls",
+        "id": "msg_08083520a00122fdgRiP49B548",
+        "sessionID": "ses_f7f7dd943ffeFMGnvvklAXnkeQ"
+      },
+      "parts": [
+        {
+          "type": "tool",
+          "tool": "task",
+          "callID": "toolu_01XGbpzcRZTFBtxRFE6Wp2Wy",
+          "state": {
+            "status": "completed",
+            "input": {
+              "description": "Investigate app.example.com slowness",
+              "subagent_type": "team-engineer",
+              "prompt": "<redacted>"
+            },
+            "output": "<redacted>",
+            "metadata": {
+              "parentSessionId": "ses_f7f7dd943ffeFMGnvvklAXnkeQ",
+              "sessionId": "ses_f7f7bf833ffea8uK5zeARa7kcr",
+              "model": {
+                "providerID": "github-copilot",
+                "modelID": "claude-sonnet-5"
+              },
+              "truncated": false
+            },
+            "title": "Investigate app.example.com slowness",
+            "time": {
+              "start": 1788862531537,
+              "end": 1788862616427
+            }
+          },
+          "id": "prt_080839060001esbcTQCEvQBMrR",
+          "sessionID": "ses_f7f7dd943ffeFMGnvvklAXnkeQ",
+          "messageID": "msg_08083520a00122fdgRiP49B548"
+        },
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 45353,
+            "input": 2,
+            "output": 2586,
+            "reasoning": 720,
+            "cache": {
+              "write": 1559,
+              "read": 40486
+            }
+          },
+          "cost": 0.11264675,
+          "id": "prt_08085536e001E32rZ0SNp8ZAqZ",
+          "sessionID": "ses_f7f7dd943ffeFMGnvvklAXnkeQ",
+          "messageID": "msg_08083520a00122fdgRiP49B548"
+        }
+      ]
+    }
+  ]
+}
+

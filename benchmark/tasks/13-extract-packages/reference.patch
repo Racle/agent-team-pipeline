@@ -1,0 +1,200 @@
+diff --git a/api/store.go b/api/internal/store/store.go
+similarity index 99%
+rename from api/store.go
+rename to api/internal/store/store.go
+index f16ef52..5b72e7b 100644
+--- a/api/store.go
++++ b/api/internal/store/store.go
+@@ -1,4 +1,4 @@
+-package main
++package store
+ 
+ import (
+ 	"sort"
+diff --git a/api/internal/store/store_test.go b/api/internal/store/store_test.go
+new file mode 100644
+index 0000000..02f4a18
+--- /dev/null
++++ b/api/internal/store/store_test.go
+@@ -0,0 +1,23 @@
++package store
++
++import "testing"
++
++func TestStoreCRUD(t *testing.T) {
++	s := NewStore()
++	n := s.Create("a", "b")
++	if n.ID != 1 {
++		t.Fatalf("id %d", n.ID)
++	}
++	if got, ok := s.Get(1); !ok || got.Title != "a" {
++		t.Fatalf("get %+v %v", got, ok)
++	}
++	if u, ok := s.Update(1, "c", "d"); !ok || u.Title != "c" || u.Body != "d" {
++		t.Fatalf("update %+v %v", u, ok)
++	}
++	if len(s.List()) != 1 {
++		t.Fatal("list")
++	}
++	if !s.Delete(1) || s.Delete(1) {
++		t.Fatal("delete")
++	}
++}
+diff --git a/api/internal/validate/validate.go b/api/internal/validate/validate.go
+new file mode 100644
+index 0000000..de88284
+--- /dev/null
++++ b/api/internal/validate/validate.go
+@@ -0,0 +1,26 @@
++// Package validate holds request parsing/validation helpers for the notes API.
++package validate
++
++import (
++	"encoding/json"
++	"io"
++	"strconv"
++)
++
++// NoteInput is the JSON payload for creating or updating a note.
++type NoteInput struct {
++	Title string `json:"title"`
++	Body  string `json:"body"`
++}
++
++// DecodeNoteInput decodes a NoteInput from r and fails on invalid JSON.
++func DecodeNoteInput(r io.Reader) (NoteInput, error) {
++	var in NoteInput
++	err := json.NewDecoder(r).Decode(&in)
++	return in, err
++}
++
++// ParseID parses a note id path value.
++func ParseID(s string) (int, error) {
++	return strconv.Atoi(s)
++}
+diff --git a/api/internal/validate/validate_test.go b/api/internal/validate/validate_test.go
+new file mode 100644
+index 0000000..46b1302
+--- /dev/null
++++ b/api/internal/validate/validate_test.go
+@@ -0,0 +1,25 @@
++package validate
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestDecodeNoteInput(t *testing.T) {
++	in, err := DecodeNoteInput(strings.NewReader(`{"title":"a","body":"b"}`))
++	if err != nil || in.Title != "a" || in.Body != "b" {
++		t.Fatalf("got %+v err=%v", in, err)
++	}
++	if _, err := DecodeNoteInput(strings.NewReader(`{bad`)); err == nil {
++		t.Fatal("expected error for invalid JSON")
++	}
++}
++
++func TestParseID(t *testing.T) {
++	if id, err := ParseID("7"); err != nil || id != 7 {
++		t.Fatalf("got %d err=%v", id, err)
++	}
++	if _, err := ParseID("abc"); err == nil {
++		t.Fatal("expected error")
++	}
++}
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..c9492d2 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -3,21 +3,23 @@ package main
+ import (
+ 	"encoding/json"
+ 	"net/http"
+-	"strconv"
+-)
+ 
+-type noteInput struct {
+-	Title string `json:"title"`
+-	Body  string `json:"body"`
+-}
++	"notesapi/internal/store"
++	"notesapi/internal/validate"
++)
+ 
+ type server struct {
+-	store *Store
++	store *store.Store
+ }
+ 
+ // NewServer returns the HTTP handler for the notes API, backed by a fresh in-memory store.
+ func NewServer() http.Handler {
+-	s := &server{store: NewStore()}
++	return NewServerWithStore(store.NewStore())
++}
++
++// NewServerWithStore returns the HTTP handler for the notes API, backed by st.
++func NewServerWithStore(st *store.Store) http.Handler {
++	s := &server{store: st}
+ 	mux := http.NewServeMux()
+ 	mux.HandleFunc("GET /api/notes", s.list)
+ 	mux.HandleFunc("POST /api/notes", s.create)
+@@ -38,7 +40,7 @@ func writeError(w http.ResponseWriter, status int, msg string) {
+ }
+ 
+ func noteID(w http.ResponseWriter, r *http.Request) (int, bool) {
+-	id, err := strconv.Atoi(r.PathValue("id"))
++	id, err := validate.ParseID(r.PathValue("id"))
+ 	if err != nil {
+ 		writeError(w, http.StatusBadRequest, "invalid id")
+ 		return 0, false
+@@ -46,9 +48,9 @@ func noteID(w http.ResponseWriter, r *http.Request) (int, bool) {
+ 	return id, true
+ }
+ 
+-func decodeInput(w http.ResponseWriter, r *http.Request) (noteInput, bool) {
+-	var in noteInput
+-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
++func decodeInput(w http.ResponseWriter, r *http.Request) (validate.NoteInput, bool) {
++	in, err := validate.DecodeNoteInput(r.Body)
++	if err != nil {
+ 		writeError(w, http.StatusBadRequest, "invalid JSON body")
+ 		return in, false
+ 	}
+diff --git a/api/server_test.go b/api/server_test.go
+index 0ea6d62..ac12aac 100644
+--- a/api/server_test.go
++++ b/api/server_test.go
+@@ -6,6 +6,8 @@ import (
+ 	"net/http/httptest"
+ 	"strings"
+ 	"testing"
++
++	"notesapi/internal/store"
+ )
+ 
+ func do(t *testing.T, h http.Handler, method, path, body string) *httptest.ResponseRecorder {
+@@ -22,12 +24,12 @@ func TestCreateAndList(t *testing.T) {
+ 	if rec.Code != http.StatusCreated {
+ 		t.Fatalf("create: got %d", rec.Code)
+ 	}
+-	var n Note
++	var n store.Note
+ 	if err := json.Unmarshal(rec.Body.Bytes(), &n); err != nil || n.ID != 1 || n.Title != "a" {
+ 		t.Fatalf("bad note %+v err=%v", n, err)
+ 	}
+ 	rec = do(t, h, "GET", "/api/notes", "")
+-	var list []Note
++	var list []store.Note
+ 	_ = json.Unmarshal(rec.Body.Bytes(), &list)
+ 	if rec.Code != 200 || len(list) != 1 {
+ 		t.Fatalf("list: %d %v", rec.Code, list)
+@@ -41,7 +43,7 @@ func TestGetUpdateDelete(t *testing.T) {
+ 		t.Fatalf("get: %d", rec.Code)
+ 	}
+ 	rec := do(t, h, "PUT", "/api/notes/1", `{"title":"c","body":"d"}`)
+-	var n Note
++	var n store.Note
+ 	_ = json.Unmarshal(rec.Body.Bytes(), &n)
+ 	if rec.Code != 200 || n.Title != "c" {
+ 		t.Fatalf("put: %d %+v", rec.Code, n)

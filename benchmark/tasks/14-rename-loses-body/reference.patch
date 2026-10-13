@@ -1,0 +1,187 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..9b835ad 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -85,11 +85,15 @@ func (s *server) update(w http.ResponseWriter, r *http.Request) {
+ 	if !ok {
+ 		return
+ 	}
+-	in, ok := decodeInput(w, r)
+-	if !ok {
++	var in struct {
++		Title *string `json:"title"`
++		Body  *string `json:"body"`
++	}
++	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
++		writeError(w, http.StatusBadRequest, "invalid JSON body")
+ 		return
+ 	}
+-	n, found := s.store.Update(id, in.Title, in.Body)
++	n, found := s.store.Patch(id, in.Title, in.Body)
+ 	if !found {
+ 		writeError(w, http.StatusNotFound, "note not fount")
+ 		return
+diff --git a/api/server_test.go b/api/server_test.go
+index 0ea6d62..fe60832 100644
+--- a/api/server_test.go
++++ b/api/server_test.go
+@@ -69,3 +69,19 @@ func TestErrors(t *testing.T) {
+ 		t.Fatalf("delete missing: %d", rec.Code)
+ 	}
+ }
++
++func TestPutPartialKeepsOtherFields(t *testing.T) {
++	h := NewServer()
++	do(t, h, "POST", "/api/notes", `{"title":"a","body":"b"}`)
++	var n Note
++	rec := do(t, h, "PUT", "/api/notes/1", `{"title":"c"}`)
++	_ = json.Unmarshal(rec.Body.Bytes(), &n)
++	if rec.Code != 200 || n.Title != "c" || n.Body != "b" {
++		t.Fatalf("title-only put: %d %+v", rec.Code, n)
++	}
++	rec = do(t, h, "PUT", "/api/notes/1", `{"body":""}`)
++	_ = json.Unmarshal(rec.Body.Bytes(), &n)
++	if n.Title != "c" || n.Body != "" {
++		t.Fatalf("empty body must clear: %+v", n)
++	}
++}
+diff --git a/api/store.go b/api/store.go
+index f16ef52..75f2f61 100644
+--- a/api/store.go
++++ b/api/store.go
+@@ -79,3 +79,22 @@ func (s *Store) Delete(id int) bool {
+ 	delete(s.notes, id)
+ 	return ok
+ }
++
++// Patch updates only the non-nil fields of an existing note.
++func (s *Store) Patch(id int, title, body *string) (Note, bool) {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	n, ok := s.notes[id]
++	if !ok {
++		return Note{}, false
++	}
++	if title != nil {
++		n.Title = *title
++	}
++	if body != nil {
++		n.Body = *body
++	}
++	n.UpdatedAt = time.Now().UTC()
++	s.notes[id] = n
++	return n, true
++}
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index fef6d05..cdbe1e4 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -1,5 +1,5 @@
+ import { useCallback, useEffect, useState } from 'react'
+-import { createNote, deleteNote, listNotes, type Note, type NoteInput } from './api'
++import { createNote, deleteNote, listNotes, renameNote, type Note, type NoteInput } from './api'
+ import NoteForm from './NoteForm'
+ import NotesList from './NotesList'
+ 
+@@ -24,11 +24,16 @@ export default function App() {
+     await refresh()
+   }
+ 
++  async function handleRename(id: number, title: string) {
++    const updated = await renameNote(id, title)
++    setNotes(ns => ns.map(n => (n.id === id ? updated : n)))
++  }
++
+   return (
+     <main>
+       <h1>Notes</h1>
+       <NoteForm onSubmit={handleCreate} />
+-      <NotesList notes={notes} onDelete={handleDelete} />
++      <NotesList notes={notes} onDelete={handleDelete} onRename={handleRename} />
+     </main>
+   )
+ }
+diff --git a/web/src/NotesList.tsx b/web/src/NotesList.tsx
+index 0c66b97..599c282 100644
+--- a/web/src/NotesList.tsx
++++ b/web/src/NotesList.tsx
+@@ -1,19 +1,57 @@
++import { useState } from 'react'
+ import type { Note } from './api'
+ 
+ interface Props {
+   notes: Note[]
+   onDelete: (id: number) => void
++  onRename: (id: number, title: string) => Promise<void>
+ }
+ 
+-export default function NotesList({ notes, onDelete }: Props) {
++function NoteItem({ note, onDelete, onRename }: { note: Note } & Omit<Props, 'notes'>) {
++  const [editing, setEditing] = useState(false)
++  const [title, setTitle] = useState(note.title)
++  const [error, setError] = useState(false)
++
++  async function confirm() {
++    try {
++      await onRename(note.id, title)
++      setEditing(false)
++      setError(false)
++    } catch {
++      setError(true)
++    }
++  }
++
++  return (
++    <li>
++      <strong>{note.title}</strong>
++      <p>{note.body}</p>
++      {editing ? (
++        <>
++          <input aria-label='New title' value={title} onChange={e => setTitle(e.target.value)} />
++          <button onClick={() => void confirm()}>Confirm</button>
++          {error && <div role='alert'>Rename failed</div>}
++        </>
++      ) : (
++        <button
++          onClick={() => {
++            setTitle(note.title)
++            setEditing(true)
++          }}
++        >
++          Rename
++        </button>
++      )}
++      <button onClick={() => onDelete(note.id)}>Delete</button>
++    </li>
++  )
++}
++
++export default function NotesList({ notes, onDelete, onRename }: Props) {
+   return (
+     <ul>
+       {notes.map(n => (
+-        <li key={n.id}>
+-          <strong>{n.title}</strong>
+-          <p>{n.body}</p>
+-          <button onClick={() => onDelete(n.id)}>Delete</button>
+-        </li>
++        <NoteItem key={n.id} note={n} onDelete={onDelete} onRename={onRename} />
+       ))}
+     </ul>
+   )
+diff --git a/web/src/api.ts b/web/src/api.ts
+index a99b5ea..eac5148 100644
+--- a/web/src/api.ts
++++ b/web/src/api.ts
+@@ -34,3 +34,11 @@ export function createNote(input: NoteInput): Promise<Note> {
+ export function deleteNote(id: number): Promise<void> {
+   return request<void>(`/api/notes/${id}`, { method: 'DELETE' })
+ }
++
++export function renameNote(id: number, title: string): Promise<Note> {
++  return request<Note>(`/api/notes/${id}`, {
++    method: 'PUT',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({ title }),
++  })
++}

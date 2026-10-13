@@ -1,0 +1,235 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..8ca8110 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -7,8 +7,9 @@ import (
+ )
+ 
+ type noteInput struct {
+-	Title string `json:"title"`
+-	Body  string `json:"body"`
++	Title string   `json:"title"`
++	Body  string   `json:"body"`
++	Tags  []string `json:"tags"`
+ }
+ 
+ type server struct {
+@@ -56,7 +57,20 @@ func decodeInput(w http.ResponseWriter, r *http.Request) (noteInput, bool) {
+ }
+ 
+ func (s *server) list(w http.ResponseWriter, r *http.Request) {
+-	writeJSON(w, http.StatusOK, s.store.List())
++	notes := s.store.List()
++	if tag := r.URL.Query().Get("tag"); tag != "" {
++		filtered := make([]Note, 0, len(notes))
++		for _, n := range notes {
++			for _, t := range n.Tags {
++				if t == tag {
++					filtered = append(filtered, n)
++					break
++				}
++			}
++		}
++		notes = filtered
++	}
++	writeJSON(w, http.StatusOK, notes)
+ }
+ 
+ func (s *server) create(w http.ResponseWriter, r *http.Request) {
+@@ -64,7 +78,7 @@ func (s *server) create(w http.ResponseWriter, r *http.Request) {
+ 	if !ok {
+ 		return
+ 	}
+-	writeJSON(w, http.StatusCreated, s.store.Create(in.Title, in.Body))
++	writeJSON(w, http.StatusCreated, s.store.Create(in.Title, in.Body, in.Tags))
+ }
+ 
+ func (s *server) get(w http.ResponseWriter, r *http.Request) {
+@@ -89,7 +103,7 @@ func (s *server) update(w http.ResponseWriter, r *http.Request) {
+ 	if !ok {
+ 		return
+ 	}
+-	n, found := s.store.Update(id, in.Title, in.Body)
++	n, found := s.store.Update(id, in.Title, in.Body, in.Tags)
+ 	if !found {
+ 		writeError(w, http.StatusNotFound, "note not fount")
+ 		return
+diff --git a/api/store.go b/api/store.go
+index f16ef52..d081a9c 100644
+--- a/api/store.go
++++ b/api/store.go
+@@ -11,6 +11,7 @@ type Note struct {
+ 	ID        int       `json:"id"`
+ 	Title     string    `json:"title"`
+ 	Body      string    `json:"body"`
++	Tags      []string  `json:"tags"`
+ 	CreatedAt time.Time `json:"created_at"`
+ 	UpdatedAt time.Time `json:"updated_at"`
+ }
+@@ -22,6 +23,13 @@ type Store struct {
+ 	notes  map[int]Note
+ }
+ 
++func normTags(t []string) []string {
++	if t == nil {
++		return []string{}
++	}
++	return t
++}
++
+ // NewStore returns an empty Store.
+ func NewStore() *Store {
+ 	return &Store{nextID: 1, notes: map[int]Note{}}
+@@ -48,25 +56,25 @@ func (s *Store) Get(id int) (Note, bool) {
+ }
+ 
+ // Create stores a new note and returns it.
+-func (s *Store) Create(title, body string) Note {
++func (s *Store) Create(title, body string, tags []string) Note {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
+ 	now := time.Now().UTC()
+-	n := Note{ID: s.nextID, Title: title, Body: body, CreatedAt: now, UpdatedAt: now}
++	n := Note{ID: s.nextID, Title: title, Body: body, Tags: normTags(tags), CreatedAt: now, UpdatedAt: now}
+ 	s.nextID++
+ 	s.notes[n.ID] = n
+ 	return n
+ }
+ 
+ // Update replaces title and body of an existing note.
+-func (s *Store) Update(id int, title, body string) (Note, bool) {
++func (s *Store) Update(id int, title, body string, tags []string) (Note, bool) {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
+ 	n, ok := s.notes[id]
+ 	if !ok {
+ 		return Note{}, false
+ 	}
+-	n.Title, n.Body, n.UpdatedAt = title, body, time.Now().UTC()
++	n.Title, n.Body, n.Tags, n.UpdatedAt = title, body, normTags(tags), time.Now().UTC()
+ 	s.notes[id] = n
+ 	return n, true
+ }
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index fef6d05..a413cad 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -6,9 +6,11 @@ import NotesList from './NotesList'
+ export default function App() {
+   const [notes, setNotes] = useState<Note[]>([])
+ 
++  const [tag, setTag] = useState<string | undefined>(undefined)
++
+   const refresh = useCallback(async () => {
+-    setNotes(await listNotes())
+-  }, [])
++    setNotes(await listNotes(tag))
++  }, [tag])
+ 
+   useEffect(() => {
+     void refresh()
+@@ -28,7 +30,7 @@ export default function App() {
+     <main>
+       <h1>Notes</h1>
+       <NoteForm onSubmit={handleCreate} />
+-      <NotesList notes={notes} onDelete={handleDelete} />
++      <NotesList notes={notes} onDelete={handleDelete} onTag={setTag} />
+     </main>
+   )
+ }
+diff --git a/web/src/NoteForm.tsx b/web/src/NoteForm.tsx
+index 4aef5a5..7030b00 100644
+--- a/web/src/NoteForm.tsx
++++ b/web/src/NoteForm.tsx
+@@ -8,12 +8,21 @@ interface Props {
+ export default function NoteForm({ onSubmit }: Props) {
+   const [title, setTitle] = useState('')
+   const [body, setBody] = useState('')
++  const [tags, setTags] = useState('')
+ 
+   async function handleSubmit(e: FormEvent) {
+     e.preventDefault()
+-    await onSubmit({ title, body })
++    await onSubmit({
++      title,
++      body,
++      tags: tags
++        .split(',')
++        .map(t => t.trim())
++        .filter(Boolean),
++    })
+     setTitle('')
+     setBody('')
++    setTags('')
+   }
+ 
+   return (
+@@ -26,6 +35,10 @@ export default function NoteForm({ onSubmit }: Props) {
+         Body
+         <textarea value={body} onChange={e => setBody(e.target.value)} />
+       </label>
++      <label>
++        Tags
++        <input value={tags} onChange={e => setTags(e.target.value)} />
++      </label>
+       <button type='submit'>Add note</button>
+     </form>
+   )
+diff --git a/web/src/NotesList.tsx b/web/src/NotesList.tsx
+index 0c66b97..8a2ded2 100644
+--- a/web/src/NotesList.tsx
++++ b/web/src/NotesList.tsx
+@@ -3,15 +3,21 @@ import type { Note } from './api'
+ interface Props {
+   notes: Note[]
+   onDelete: (id: number) => void
++  onTag: (tag: string) => void
+ }
+ 
+-export default function NotesList({ notes, onDelete }: Props) {
++export default function NotesList({ notes, onDelete, onTag }: Props) {
+   return (
+     <ul>
+       {notes.map(n => (
+         <li key={n.id}>
+           <strong>{n.title}</strong>
+           <p>{n.body}</p>
++          {(n.tags ?? []).map(t => (
++            <button key={t} onClick={() => onTag(t)}>
++              {`Tag: ${t}`}
++            </button>
++          ))}
+           <button onClick={() => onDelete(n.id)}>Delete</button>
+         </li>
+       ))}
+diff --git a/web/src/api.ts b/web/src/api.ts
+index a99b5ea..3c3a137 100644
+--- a/web/src/api.ts
++++ b/web/src/api.ts
+@@ -2,6 +2,7 @@ export interface Note {
+   id: number
+   title: string
+   body: string
++  tags?: string[]
+   created_at: string
+   updated_at: string
+ }
+@@ -9,6 +10,7 @@ export interface Note {
+ export interface NoteInput {
+   title: string
+   body: string
++  tags?: string[]
+ }
+ 
+ async function request<T>(url: string, init?: RequestInit): Promise<T> {
+@@ -19,8 +21,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
+   return res.status === 204 ? (undefined as T) : ((await res.json()) as T)
+ }
+ 
+-export function listNotes(): Promise<Note[]> {
+-  return request<Note[]>('/api/notes')
++export function listNotes(tag?: string): Promise<Note[]> {
++  return request<Note[]>(tag ? `/api/notes?tag=${encodeURIComponent(tag)}` : '/api/notes')
+ }
+ 
+ export function createNote(input: NoteInput): Promise<Note> {

@@ -1,0 +1,48 @@
+{
+ "info": {
+  "id": "ses_v2explore",
+  "parentID": "ses_v2root"
+ },
+ "messages": [
+  {
+   "info": {
+    "role": "user",
+    "model": {
+     "providerID": "github-copilot",
+     "modelID": "claude-haiku-5.5"
+    }
+   },
+   "parts": []
+  },
+  {
+   "info": {
+    "role": "assistant",
+    "providerID": "github-copilot",
+    "modelID": "claude-haiku-5.5",
+    "tokens": {
+     "input": 0,
+     "output": 0,
+     "reasoning": 0,
+     "cache": {
+      "read": 0,
+      "write": 0
+     }
+    }
+   },
+   "parts": [
+    {
+     "type": "step-finish",
+     "tokens": {
+      "input": 100,
+      "output": 200,
+      "reasoning": 0,
+      "cache": {
+       "read": 0,
+       "write": 9000
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

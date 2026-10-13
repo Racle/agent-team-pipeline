@@ -1,0 +1,109 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..1175efa 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -56,7 +56,35 @@ func decodeInput(w http.ResponseWriter, r *http.Request) (noteInput, bool) {
+ }
+ 
+ func (s *server) list(w http.ResponseWriter, r *http.Request) {
+-	writeJSON(w, http.StatusOK, s.store.List())
++	notes := s.store.List()
++	q := r.URL.Query()
++	offset, limit := 0, -1
++	if v := q.Get("offset"); v != "" {
++		n, err := strconv.Atoi(v)
++		if err != nil || n < 0 {
++			writeError(w, http.StatusBadRequest, "invalid offset")
++			return
++		}
++		offset = n
++	}
++	if v := q.Get("limit"); v != "" {
++		n, err := strconv.Atoi(v)
++		if err != nil || n < 1 {
++			writeError(w, http.StatusBadRequest, "invalid limit")
++			return
++		}
++		limit = n
++	}
++	total := len(notes)
++	if offset > total {
++		offset = total
++	}
++	notes = notes[offset:]
++	if limit >= 0 && limit < len(notes) {
++		notes = notes[:limit]
++	}
++	w.Header().Set("X-Total-Count", strconv.Itoa(total))
++	writeJSON(w, http.StatusOK, notes)
+ }
+ 
+ func (s *server) create(w http.ResponseWriter, r *http.Request) {
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index fef6d05..5e3c627 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -3,12 +3,18 @@ import { createNote, deleteNote, listNotes, type Note, type NoteInput } from './
+ import NoteForm from './NoteForm'
+ import NotesList from './NotesList'
+ 
++const PAGE_SIZE = 5
++
+ export default function App() {
+   const [notes, setNotes] = useState<Note[]>([])
++  const [offset, setOffset] = useState(0)
++  const [total, setTotal] = useState(0)
+ 
+   const refresh = useCallback(async () => {
+-    setNotes(await listNotes())
+-  }, [])
++    const page = await listNotes(PAGE_SIZE, offset)
++    setNotes(page.notes)
++    setTotal(page.total)
++  }, [offset])
+ 
+   useEffect(() => {
+     void refresh()
+@@ -29,6 +35,17 @@ export default function App() {
+       <h1>Notes</h1>
+       <NoteForm onSubmit={handleCreate} />
+       <NotesList notes={notes} onDelete={handleDelete} />
++      <nav>
++        <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
++          Previous
++        </button>
++        <span>
++          Page {Math.floor(offset / PAGE_SIZE) + 1} of {Math.max(1, Math.ceil(total / PAGE_SIZE))}
++        </span>
++        <button disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>
++          Next
++        </button>
++      </nav>
+     </main>
+   )
+ }
+diff --git a/web/src/api.ts b/web/src/api.ts
+index a99b5ea..2df4630 100644
+--- a/web/src/api.ts
++++ b/web/src/api.ts
+@@ -19,8 +19,18 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
+   return res.status === 204 ? (undefined as T) : ((await res.json()) as T)
+ }
+ 
+-export function listNotes(): Promise<Note[]> {
+-  return request<Note[]>('/api/notes')
++export interface NotesPage {
++  notes: Note[]
++  total: number
++}
++
++export async function listNotes(limit: number, offset: number): Promise<NotesPage> {
++  const res = await fetch(`/api/notes?limit=${limit}&offset=${offset}`)
++  if (!res.ok) {
++    throw new Error(`Request failed: ${res.status}`)
++  }
++  const notes = (await res.json()) as Note[]
++  return { notes, total: Number(res.headers.get('X-Total-Count') ?? notes.length) }
+ }
+ 
+ export function createNote(input: NoteInput): Promise<Note> {

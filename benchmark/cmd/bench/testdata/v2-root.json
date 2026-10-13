@@ -1,0 +1,132 @@
+{
+ "info": {
+  "id": "ses_v2root"
+ },
+ "messages": [
+  {
+   "info": {
+    "role": "user",
+    "model": {
+     "providerID": "github-copilot",
+     "modelID": "claude-sonnet-5.5"
+    }
+   },
+   "parts": []
+  },
+  {
+   "info": {
+    "role": "assistant",
+    "providerID": "github-copilot",
+    "modelID": "claude-sonnet-5.5",
+    "tokens": {
+     "input": 0,
+     "output": 0,
+     "reasoning": 0,
+     "cache": {
+      "read": 0,
+      "write": 0
+     }
+    }
+   },
+   "parts": [
+    {
+     "type": "step-finish",
+     "tokens": {
+      "input": 10,
+      "output": 100,
+      "reasoning": 0,
+      "cache": {
+       "read": 0,
+       "write": 1000
+      }
+     }
+    },
+    {
+     "type": "step-finish",
+     "tokens": {
+      "input": 5,
+      "output": 50,
+      "reasoning": 0,
+      "cache": {
+       "read": 1000,
+       "write": 200
+      }
+     }
+    },
+    {
+     "type": "tool",
+     "tool": "task",
+     "state": {
+      "status": "completed",
+      "input": {
+       "subagent_type": "explore",
+       "description": "d",
+       "prompt": "p"
+      },
+      "metadata": {
+       "sessionId": "ses_v2explore"
+      }
+     }
+    },
+    {
+     "type": "tool",
+     "tool": "task",
+     "state": {
+      "status": "completed",
+      "input": {
+       "subagent_type": "general",
+       "description": "d",
+       "prompt": "p"
+      },
+      "metadata": {
+       "sessionId": "ses_v2general"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "info": {
+    "role": "assistant",
+    "providerID": "github-copilot",
+    "modelID": "claude-sonnet-5.5",
+    "tokens": {
+     "input": 0,
+     "output": 0,
+     "reasoning": 0,
+     "cache": {
+      "read": 0,
+      "write": 0
+     }
+    }
+   },
+   "parts": [
+    {
+     "type": "step-finish",
+     "tokens": {
+      "input": 2,
+      "output": 20,
+      "reasoning": 0,
+      "cache": {
+       "read": 3000,
+       "write": 100
+      }
+     }
+    },
+    {
+     "type": "tool",
+     "tool": "task",
+     "state": {
+      "status": "completed",
+      "input": {
+       "subagent_type": "team-engineer",
+       "description": "d",
+       "prompt": "p"
+      },
+      "metadata": {}
+     }
+    }
+   ]
+  }
+ ]
+}

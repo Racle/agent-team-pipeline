@@ -1,0 +1,153 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..f38a900 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -23,6 +23,7 @@ func NewServer() http.Handler {
+ 	mux.HandleFunc("POST /api/notes", s.create)
+ 	mux.HandleFunc("GET /api/notes/{id}", s.get)
+ 	mux.HandleFunc("PUT /api/notes/{id}", s.update)
++	mux.HandleFunc("PATCH /api/notes/{id}", s.patch)
+ 	mux.HandleFunc("DELETE /api/notes/{id}", s.delete)
+ 	return mux
+ }
+@@ -97,6 +98,26 @@ func (s *server) update(w http.ResponseWriter, r *http.Request) {
+ 	writeJSON(w, http.StatusOK, n)
+ }
+ 
++func (s *server) patch(w http.ResponseWriter, r *http.Request) {
++	id, ok := noteID(w, r)
++	if !ok {
++		return
++	}
++	var in struct {
++		Done *bool `json:"done"`
++	}
++	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Done == nil {
++		writeError(w, http.StatusBadRequest, "invalid JSON body")
++		return
++	}
++	n, found := s.store.SetDone(id, *in.Done)
++	if !found {
++		writeError(w, http.StatusNotFound, "note not fount")
++		return
++	}
++	writeJSON(w, http.StatusOK, n)
++}
++
+ func (s *server) delete(w http.ResponseWriter, r *http.Request) {
+ 	id, ok := noteID(w, r)
+ 	if !ok {
+diff --git a/api/store.go b/api/store.go
+index f16ef52..c1579c7 100644
+--- a/api/store.go
++++ b/api/store.go
+@@ -11,6 +11,7 @@ type Note struct {
+ 	ID        int       `json:"id"`
+ 	Title     string    `json:"title"`
+ 	Body      string    `json:"body"`
++	Done      bool      `json:"done"`
+ 	CreatedAt time.Time `json:"created_at"`
+ 	UpdatedAt time.Time `json:"updated_at"`
+ }
+@@ -71,6 +72,19 @@ func (s *Store) Update(id int, title, body string) (Note, bool) {
+ 	return n, true
+ }
+ 
++// SetDone updates only the done flag of an existing note.
++func (s *Store) SetDone(id int, done bool) (Note, bool) {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	n, ok := s.notes[id]
++	if !ok {
++		return Note{}, false
++	}
++	n.Done, n.UpdatedAt = done, time.Now().UTC()
++	s.notes[id] = n
++	return n, true
++}
++
+ // Delete removes a note and reports whether it existed.
+ func (s *Store) Delete(id int) bool {
+ 	s.mu.Lock()
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index fef6d05..44f3acc 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -1,5 +1,5 @@
+ import { useCallback, useEffect, useState } from 'react'
+-import { createNote, deleteNote, listNotes, type Note, type NoteInput } from './api'
++import { createNote, deleteNote, listNotes, setDone, type Note, type NoteInput } from './api'
+ import NoteForm from './NoteForm'
+ import NotesList from './NotesList'
+ 
+@@ -24,11 +24,16 @@ export default function App() {
+     await refresh()
+   }
+ 
++  async function handleToggle(id: number, done: boolean) {
++    await setDone(id, done)
++    await refresh()
++  }
++
+   return (
+     <main>
+       <h1>Notes</h1>
+       <NoteForm onSubmit={handleCreate} />
+-      <NotesList notes={notes} onDelete={handleDelete} />
++      <NotesList notes={notes} onDelete={handleDelete} onToggle={handleToggle} />
+     </main>
+   )
+ }
+diff --git a/web/src/NotesList.tsx b/web/src/NotesList.tsx
+index 0c66b97..d5d8d68 100644
+--- a/web/src/NotesList.tsx
++++ b/web/src/NotesList.tsx
+@@ -3,13 +3,20 @@ import type { Note } from './api'
+ interface Props {
+   notes: Note[]
+   onDelete: (id: number) => void
++  onToggle: (id: number, done: boolean) => void
+ }
+ 
+-export default function NotesList({ notes, onDelete }: Props) {
++export default function NotesList({ notes, onDelete, onToggle }: Props) {
+   return (
+     <ul>
+       {notes.map(n => (
+         <li key={n.id}>
++          <input
++            type='checkbox'
++            aria-label={`Done: ${n.title}`}
++            checked={!!n.done}
++            onChange={e => onToggle(n.id, e.target.checked)}
++          />
+           <strong>{n.title}</strong>
+           <p>{n.body}</p>
+           <button onClick={() => onDelete(n.id)}>Delete</button>
+diff --git a/web/src/api.ts b/web/src/api.ts
+index a99b5ea..702a3aa 100644
+--- a/web/src/api.ts
++++ b/web/src/api.ts
+@@ -2,6 +2,7 @@ export interface Note {
+   id: number
+   title: string
+   body: string
++  done?: boolean
+   created_at: string
+   updated_at: string
+ }
+@@ -31,6 +32,14 @@ export function createNote(input: NoteInput): Promise<Note> {
+   })
+ }
+ 
++export function setDone(id: number, done: boolean): Promise<Note> {
++  return request<Note>(`/api/notes/${id}`, {
++    method: 'PATCH',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({ done }),
++  })
++}
++
+ export function deleteNote(id: number): Promise<void> {
+   return request<void>(`/api/notes/${id}`, { method: 'DELETE' })
+ }

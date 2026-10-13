@@ -1,0 +1,31 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..6f21b44 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -4,6 +4,7 @@ import (
+ 	"encoding/json"
+ 	"net/http"
+ 	"strconv"
++	"strings"
+ )
+ 
+ type noteInput struct {
+@@ -56,7 +57,17 @@ func decodeInput(w http.ResponseWriter, r *http.Request) (noteInput, bool) {
+ }
+ 
+ func (s *server) list(w http.ResponseWriter, r *http.Request) {
+-	writeJSON(w, http.StatusOK, s.store.List())
++	notes := s.store.List()
++	if q := strings.ToLower(r.URL.Query().Get("q")); q != "" {
++		filtered := make([]Note, 0, len(notes))
++		for _, n := range notes {
++			if strings.Contains(strings.ToLower(n.Title), q) || strings.Contains(strings.ToLower(n.Body), q) {
++				filtered = append(filtered, n)
++			}
++		}
++		notes = filtered
++	}
++	writeJSON(w, http.StatusOK, notes)
+ }
+ 
+ func (s *server) create(w http.ResponseWriter, r *http.Request) {

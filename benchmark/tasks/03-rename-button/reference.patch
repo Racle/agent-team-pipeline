@@ -1,0 +1,26 @@
+diff --git a/web/src/App.test.tsx b/web/src/App.test.tsx
+index 8bed5cf..88e3a0a 100644
+--- a/web/src/App.test.tsx
++++ b/web/src/App.test.tsx
+@@ -28,7 +28,7 @@ it('creates a note via the form', async () => {
+   vi.stubGlobal('fetch', fetchMock)
+   render(<App />)
+   await userEvent.type(screen.getByLabelText('Title'), 'T')
+-  await userEvent.click(screen.getByRole('button', { name: 'Add note' }))
++  await userEvent.click(screen.getByRole('button', { name: 'Create note' }))
+   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/notes', expect.objectContaining({ method: 'POST' })))
+ })
+ 
+diff --git a/web/src/NoteForm.tsx b/web/src/NoteForm.tsx
+index 4aef5a5..52913f3 100644
+--- a/web/src/NoteForm.tsx
++++ b/web/src/NoteForm.tsx
+@@ -26,7 +26,7 @@ export default function NoteForm({ onSubmit }: Props) {
+         Body
+         <textarea value={body} onChange={e => setBody(e.target.value)} />
+       </label>
+-      <button type='submit'>Add note</button>
++      <button type='submit'>Create note</button>
+     </form>
+   )
+ }

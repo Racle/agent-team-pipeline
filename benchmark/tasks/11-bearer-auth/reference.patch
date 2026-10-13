@@ -1,0 +1,167 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..b416e23 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -1,9 +1,12 @@
+ package main
+ 
+ import (
++	"crypto/subtle"
+ 	"encoding/json"
+ 	"net/http"
++	"os"
+ 	"strconv"
++	"strings"
+ )
+ 
+ type noteInput struct {
+@@ -24,7 +27,23 @@ func NewServer() http.Handler {
+ 	mux.HandleFunc("GET /api/notes/{id}", s.get)
+ 	mux.HandleFunc("PUT /api/notes/{id}", s.update)
+ 	mux.HandleFunc("DELETE /api/notes/{id}", s.delete)
+-	return mux
++	return requireToken(os.Getenv("API_TOKEN"), mux)
++}
++
++// requireToken rejects requests lacking "Authorization: Bearer <token>"; a no-op when token is empty.
++func requireToken(token string, next http.Handler) http.Handler {
++	if token == "" {
++		return next
++	}
++	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		got, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
++		if !ok || subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {
++			w.Header().Set("WWW-Authenticate", "Bearer")
++			writeError(w, http.StatusUnauthorized, "unauthorized")
++			return
++		}
++		next.ServeHTTP(w, r)
++	})
+ }
+ 
+ func writeJSON(w http.ResponseWriter, status int, v any) {
+diff --git a/web/src/App.test.tsx b/web/src/App.test.tsx
+index 8bed5cf..32a6797 100644
+--- a/web/src/App.test.tsx
++++ b/web/src/App.test.tsx
+@@ -10,6 +10,7 @@ function json(body: unknown, status = 200) {
+ }
+ 
+ beforeEach(() => {
++  localStorage.setItem('api_token', 'tok')
+   vi.stubGlobal(
+     'fetch',
+     vi.fn(() => json([note]))
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index fef6d05..1700911 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -1,32 +1,75 @@
+ import { useCallback, useEffect, useState } from 'react'
+-import { createNote, deleteNote, listNotes, type Note, type NoteInput } from './api'
++import { createNote, deleteNote, listNotes, TOKEN_KEY, UnauthorizedError, type Note, type NoteInput } from './api'
+ import NoteForm from './NoteForm'
+ import NotesList from './NotesList'
+ 
+ export default function App() {
+   const [notes, setNotes] = useState<Note[]>([])
++  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY))
++  const [draft, setDraft] = useState('')
+ 
+-  const refresh = useCallback(async () => {
+-    setNotes(await listNotes())
++  // Runs an API call; a 401 drops back to the login form.
++  const guard = useCallback(async (fn: () => Promise<void>) => {
++    try {
++      await fn()
++    } catch (e) {
++      if (!(e instanceof UnauthorizedError)) throw e
++      setToken(null)
++    }
+   }, [])
+ 
++  const refresh = useCallback(() => guard(async () => setNotes(await listNotes())), [guard])
++
+   useEffect(() => {
+-    void refresh()
+-  }, [refresh])
++    if (token) void refresh()
++  }, [token, refresh])
+ 
+   async function handleCreate(input: NoteInput) {
+-    await createNote(input)
+-    await refresh()
++    await guard(async () => {
++      await createNote(input)
++      await refresh()
++    })
+   }
+ 
+   async function handleDelete(id: number) {
+-    await deleteNote(id)
+-    await refresh()
++    await guard(async () => {
++      await deleteNote(id)
++      await refresh()
++    })
++  }
++
++  function logout() {
++    localStorage.removeItem(TOKEN_KEY)
++    setToken(null)
++  }
++
++  if (!token) {
++    return (
++      <main>
++        <h1>Notes</h1>
++        <form
++          onSubmit={e => {
++            e.preventDefault()
++            if (!draft) return
++            localStorage.setItem(TOKEN_KEY, draft)
++            setToken(draft)
++            setDraft('')
++          }}
++        >
++          <label>
++            API token
++            <input value={draft} onChange={e => setDraft(e.target.value)} />
++          </label>
++          <button type='submit'>Log in</button>
++        </form>
++      </main>
++    )
+   }
+ 
+   return (
+     <main>
+       <h1>Notes</h1>
++      <button onClick={logout}>Log out</button>
+       <NoteForm onSubmit={handleCreate} />
+       <NotesList notes={notes} onDelete={handleDelete} />
+     </main>
+diff --git a/web/src/api.ts b/web/src/api.ts
+index a99b5ea..e831cd7 100644
+--- a/web/src/api.ts
++++ b/web/src/api.ts
+@@ -11,8 +11,17 @@ export interface NoteInput {
+   body: string
+ }
+ 
+-async function request<T>(url: string, init?: RequestInit): Promise<T> {
+-  const res = await fetch(url, init)
++export const TOKEN_KEY = 'api_token'
++
++export class UnauthorizedError extends Error {}
++
++async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
++  const headers = { ...(init.headers as Record<string, string> | undefined), Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY) ?? ''}` }
++  const res = await fetch(url, { ...init, headers })
++  if (res.status === 401) {
++    localStorage.removeItem(TOKEN_KEY)
++    throw new UnauthorizedError('Unauthorized')
++  }
+   if (!res.ok) {
+     throw new Error(`Request failed: ${res.status}`)
+   }

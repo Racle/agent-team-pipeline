@@ -1,0 +1,263 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..00cb5c2 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -64,7 +64,9 @@ func (s *server) create(w http.ResponseWriter, r *http.Request) {
+ 	if !ok {
+ 		return
+ 	}
+-	writeJSON(w, http.StatusCreated, s.store.Create(in.Title, in.Body))
++	n := s.store.Create(in.Title, in.Body)
++	w.Header().Set("ETag", n.ETag())
++	writeJSON(w, http.StatusCreated, n)
+ }
+ 
+ func (s *server) get(w http.ResponseWriter, r *http.Request) {
+@@ -77,6 +79,7 @@ func (s *server) get(w http.ResponseWriter, r *http.Request) {
+ 		writeError(w, http.StatusNotFound, "note not fount")
+ 		return
+ 	}
++	w.Header().Set("ETag", n.ETag())
+ 	writeJSON(w, http.StatusOK, n)
+ }
+ 
+@@ -89,11 +92,21 @@ func (s *server) update(w http.ResponseWriter, r *http.Request) {
+ 	if !ok {
+ 		return
+ 	}
+-	n, found := s.store.Update(id, in.Title, in.Body)
++	var ifMatch *string
++	if v, ok := r.Header["If-Match"]; ok && len(v) > 0 {
++		ifMatch = &v[0]
++	}
++	n, found, err := s.store.Update(id, in.Title, in.Body, ifMatch)
+ 	if !found {
+ 		writeError(w, http.StatusNotFound, "note not fount")
+ 		return
+ 	}
++	if err != nil {
++		w.Header().Set("ETag", n.ETag())
++		writeError(w, http.StatusConflict, "version conflict: note was modified")
++		return
++	}
++	w.Header().Set("ETag", n.ETag())
+ 	writeJSON(w, http.StatusOK, n)
+ }
+ 
+diff --git a/api/store.go b/api/store.go
+index f16ef52..bf77025 100644
+--- a/api/store.go
++++ b/api/store.go
+@@ -1,7 +1,9 @@
+ package main
+ 
+ import (
++	"errors"
+ 	"sort"
++	"strconv"
+ 	"sync"
+ 	"time"
+ )
+@@ -11,6 +13,7 @@ type Note struct {
+ 	ID        int       `json:"id"`
+ 	Title     string    `json:"title"`
+ 	Body      string    `json:"body"`
++	Version   int       `json:"version"`
+ 	CreatedAt time.Time `json:"created_at"`
+ 	UpdatedAt time.Time `json:"updated_at"`
+ }
+@@ -52,23 +55,34 @@ func (s *Store) Create(title, body string) Note {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
+ 	now := time.Now().UTC()
+-	n := Note{ID: s.nextID, Title: title, Body: body, CreatedAt: now, UpdatedAt: now}
++	n := Note{ID: s.nextID, Title: title, Body: body, Version: 1, CreatedAt: now, UpdatedAt: now}
+ 	s.nextID++
+ 	s.notes[n.ID] = n
+ 	return n
+ }
+ 
+-// Update replaces title and body of an existing note.
+-func (s *Store) Update(id int, title, body string) (Note, bool) {
++// ErrVersionMismatch is returned by Update when ifMatch does not equal the note's current ETag.
++var ErrVersionMismatch = errors.New("version mismatch")
++
++// ETag is the HTTP entity tag of a note: its version in double quotes.
++func (n Note) ETag() string { return `"` + strconv.Itoa(n.Version) + `"` }
++
++// Update replaces title and body of an existing note and bumps its version. When ifMatch is
++// non-nil it must equal the current ETag (checked atomically with the write), else ErrVersionMismatch.
++func (s *Store) Update(id int, title, body string, ifMatch *string) (Note, bool, error) {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
+ 	n, ok := s.notes[id]
+ 	if !ok {
+-		return Note{}, false
++		return Note{}, false, nil
++	}
++	if ifMatch != nil && *ifMatch != n.ETag() {
++		return n, true, ErrVersionMismatch
+ 	}
+ 	n.Title, n.Body, n.UpdatedAt = title, body, time.Now().UTC()
++	n.Version++
+ 	s.notes[id] = n
+-	return n, true
++	return n, true, nil
+ }
+ 
+ // Delete removes a note and reports whether it existed.
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index fef6d05..e19d2f7 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -1,11 +1,13 @@
+ import { useCallback, useEffect, useState } from 'react'
+-import { createNote, deleteNote, listNotes, type Note, type NoteInput } from './api'
++import { createNote, deleteNote, HttpError, listNotes, updateNote, type Note, type NoteInput } from './api'
+ import NoteForm from './NoteForm'
+ import NotesList from './NotesList'
+ 
+ export default function App() {
+   const [notes, setNotes] = useState<Note[]>([])
+ 
++  const [toast, setToast] = useState<string | null>(null)
++
+   const refresh = useCallback(async () => {
+     setNotes(await listNotes())
+   }, [])
+@@ -24,11 +26,25 @@ export default function App() {
+     await refresh()
+   }
+ 
++  // Optimistic edit: show the new title at once, roll back and toast on any failure.
++  async function handleSave(note: Note, title: string) {
++    const replace = (n: Note) => setNotes(cur => cur.map(c => (c.id === n.id ? n : c)))
++    setToast(null)
++    replace({ ...note, title })
++    try {
++      replace(await updateNote(note, title))
++    } catch (e) {
++      replace(note)
++      setToast(e instanceof HttpError && e.status === 409 ? 'Update conflict: the note was changed elsewhere' : 'Could not save the note')
++    }
++  }
++
+   return (
+     <main>
+       <h1>Notes</h1>
++      {toast && <div role='alert'>{toast}</div>}
+       <NoteForm onSubmit={handleCreate} />
+-      <NotesList notes={notes} onDelete={handleDelete} />
++      <NotesList notes={notes} onDelete={handleDelete} onSave={handleSave} />
+     </main>
+   )
+ }
+diff --git a/web/src/NotesList.tsx b/web/src/NotesList.tsx
+index 0c66b97..57c5363 100644
+--- a/web/src/NotesList.tsx
++++ b/web/src/NotesList.tsx
+@@ -1,19 +1,53 @@
++import { useState } from 'react'
+ import type { Note } from './api'
+ 
+ interface Props {
+   notes: Note[]
+   onDelete: (id: number) => void
++  onSave: (note: Note, title: string) => void
+ }
+ 
+-export default function NotesList({ notes, onDelete }: Props) {
++function NoteItem({ note, onDelete, onSave }: { note: Note; onDelete: Props['onDelete']; onSave: Props['onSave'] }) {
++  const [editing, setEditing] = useState(false)
++  const [title, setTitle] = useState(note.title)
++  return (
++    <li>
++      {editing ? (
++        <>
++          <input aria-label='Edit title' value={title} onChange={e => setTitle(e.target.value)} />
++          <button
++            onClick={() => {
++              setEditing(false)
++              onSave(note, title)
++            }}
++          >
++            Save
++          </button>
++        </>
++      ) : (
++        <>
++          <strong>{note.title}</strong>
++          <p>{note.body}</p>
++          <button
++            onClick={() => {
++              setTitle(note.title)
++              setEditing(true)
++            }}
++          >
++            Edit
++          </button>
++        </>
++      )}
++      <button onClick={() => onDelete(note.id)}>Delete</button>
++    </li>
++  )
++}
++
++export default function NotesList({ notes, onDelete, onSave }: Props) {
+   return (
+     <ul>
+       {notes.map(n => (
+-        <li key={n.id}>
+-          <strong>{n.title}</strong>
+-          <p>{n.body}</p>
+-          <button onClick={() => onDelete(n.id)}>Delete</button>
+-        </li>
++        <NoteItem key={n.id} note={n} onDelete={onDelete} onSave={onSave} />
+       ))}
+     </ul>
+   )
+diff --git a/web/src/api.ts b/web/src/api.ts
+index a99b5ea..68149f7 100644
+--- a/web/src/api.ts
++++ b/web/src/api.ts
+@@ -2,6 +2,7 @@ export interface Note {
+   id: number
+   title: string
+   body: string
++  version: number
+   created_at: string
+   updated_at: string
+ }
+@@ -11,10 +12,16 @@ export interface NoteInput {
+   body: string
+ }
+ 
++export class HttpError extends Error {
++  constructor(public status: number) {
++    super(`Request failed: ${status}`)
++  }
++}
++
+ async function request<T>(url: string, init?: RequestInit): Promise<T> {
+   const res = await fetch(url, init)
+   if (!res.ok) {
+-    throw new Error(`Request failed: ${res.status}`)
++    throw new HttpError(res.status)
+   }
+   return res.status === 204 ? (undefined as T) : ((await res.json()) as T)
+ }
+@@ -31,6 +38,14 @@ export function createNote(input: NoteInput): Promise<Note> {
+   })
+ }
+ 
++export function updateNote(note: Note, title: string): Promise<Note> {
++  return request<Note>(`/api/notes/${note.id}`, {
++    method: 'PUT',
++    headers: { 'Content-Type': 'application/json', 'If-Match': `"${note.version}"` },
++    body: JSON.stringify({ title, body: note.body }),
++  })
++}
++
+ export function deleteNote(id: number): Promise<void> {
+   return request<void>(`/api/notes/${id}`, { method: 'DELETE' })
+ }

@@ -1,0 +1,31 @@
+diff --git a/api/server.go b/api/server.go
+index 3e0e5a4..6f01d14 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -74,7 +74,7 @@ func (s *server) get(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 	n, found := s.store.Get(id)
+ 	if !found {
+-		writeError(w, http.StatusNotFound, "note not fount")
++		writeError(w, http.StatusNotFound, "note not found")
+ 		return
+ 	}
+ 	writeJSON(w, http.StatusOK, n)
+@@ -91,7 +91,7 @@ func (s *server) update(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 	n, found := s.store.Update(id, in.Title, in.Body)
+ 	if !found {
+-		writeError(w, http.StatusNotFound, "note not fount")
++		writeError(w, http.StatusNotFound, "note not found")
+ 		return
+ 	}
+ 	writeJSON(w, http.StatusOK, n)
+@@ -103,7 +103,7 @@ func (s *server) delete(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 	if !s.store.Delete(id) {
+-		writeError(w, http.StatusNotFound, "note not fount")
++		writeError(w, http.StatusNotFound, "note not found")
+ 		return
+ 	}
+ 	w.WriteHeader(http.StatusNoContent)
