@@ -1,39 +1,22 @@
 # AI Agent Team Pipeline for OpenCode
 
-## What Is This?
+> A cheap single-agent setup for [OpenCode](https://opencode.ai).
 
-A **6-agent orchestration system** for [OpenCode](https://opencode.ai) that replaces the default single-agent workflow with a structured, sequential pipeline. Instead of one AI agent doing everything (planning, coding, testing, reviewing, committing), a **Captain agent** delegates to 5 specialized subagents -- each with its own model tier, permissions, and focused prompt.
+![opencode](https://img.shields.io/badge/for-opencode-4ADE80)
+![benchmark](https://img.shields.io/badge/benchmark-~49%25%20cheaper-brightgreen)
+![pass rate](https://img.shields.io/badge/hidden%20tests-45%2F45-blue)
 
-The result: higher code quality, lower token costs, and a predictable workflow that mirrors how a real engineering team operates.
+_Based on [san3jaya/agent-team-pipeline](https://github.com/san3jaya/agent-team-pipeline)._
 
-> _Based on [san3jaya/agent-team-pipeline](https://github.com/san3jaya/agent-team-pipeline)._
+## Why
 
-## The Agent Roster
+The default agent, `team-captain` (a single agent; called `team-solo` during benchmarking), is about **49% cheaper** than the old 6-agent pipeline ($0.548 → $0.281 per task) and about **10% cheaper** than a plain Opus agent ($0.311; within noise per category; see caveats), with the same pass rate: 45/45 hidden-test passes for each setup (15 tasks × 3 reps).
 
-| Agent         | Role                                                            | Model Tier          | Cost   |
-| ------------- | --------------------------------------------------------------- | ------------------- | ------ |
-| **Captain**   | Orchestrator -- classifies tasks, delegates, compresses context | Inherits default \* | High   |
-| **Architect** | Explores codebase, analyzes requirements, designs architecture  | Inherits default \* | High   |
-| **Engineer**  | Writes/edits code, updates documentation                        | Mid (Sonnet 5.5)    | Medium |
-| **Forge**     | Formats code, compiles assets, runs tests, fixes test files     | Mid (Sonnet 5.5)    | Medium |
-| **Inspector** | Quality, security, and over-engineering review                  | Mid (Sonnet 5.5)    | Medium |
-| **Shipper**   | Commits, pushes, analyzes CI pipelines                          | Light (Haiku 4.5)   | Low    |
+Prices are GitHub Copilot per-token prices, checked 2026-10-13. Every subagent session rebuilds its context, so the old pipeline wrote about 115K cache-write tokens per run against about 30K for the single agent. Delegation only pays off when the work is big enough to amortize that. Details: [docs/benchmark-results.md](docs/benchmark-results.md).
 
-\* The Captain and Architect deliberately omit a `model:` key in their frontmatter, so they inherit whatever model you have selected in OpenCode (typically Opus). These two do the reasoning-heavy work, so they follow your default rather than hardcoding a premium tier into the repo.
+## Quick start
 
-> [!NOTE]
-> We can switch the LLM model to any desired option, including its reasoning capabilities.
-
-## How to Use
-
-### Prerequisites
-
-- [OpenCode](https://opencode.ai) installed and configured with at least one provider
-- Access to the models you want to use (Opus, Sonnet, Haiku 4.5) or adjust model assignments in the agent files to match your available models
-
-### Installation
-
-**Linux / macOS (one command):**
+**Linux / macOS:**
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/Racle/agent-team-pipeline/master/scripts/install.sh | bash
@@ -53,189 +36,92 @@ git clone https://github.com/Racle/agent-team-pipeline $env:LOCALAPPDATA\agent-t
 & "$env:LOCALAPPDATA\agent-team-pipeline\scripts\install.ps1"
 ```
 
-**Updating:**
+**Updating:** `agent-team-update` (Linux/macOS) or `cd $env:LOCALAPPDATA\agent-team-pipeline; git pull; .\scripts\install.ps1` (Windows). The update command does not switch `default_agent`; see the **Migration** note at the end of this file.
+**Backups:** the installer backs up an existing `agents/` and `commands/` to `*.bak.<timestamp>`.
+**Uninstalling:** `scripts/uninstall.sh` / `scripts\uninstall.ps1`.
 
-Linux/macOS:
+> [!IMPORTANT]
+> The install script sets `team-captain` as `default_agent`. **Existing users:** re-run the installer or update to pick up the new `team-captain` file. The Architect, Engineer, Forge, Inspector and Shipper agents are gone.
 
-```bash
-agent-team-update
-```
+## Agent
 
-Windows:
+`team-captain` is the only agent. It inherits whatever model you select and is not pinned to a provider. Flow: brief plan -> your approval -> minimal diff -> format every changed file + tests -> self-review (security and over-engineering checklist) -> commit only if asked. It works alone by default (one session, one cache) and starts a subagent only when a skill needs it or a job reads far more than it returns. The built-in `explore` subagent runs on Haiku (`github-copilot/claude-haiku-5.5`); the installer sets `agent.explore.model` in your `opencode.json` unless you already have one. Non-Copilot users: change or remove that setting. The system prompt is deliberately short (it is re-sent every session).
 
-```powershell
-cd $env:LOCALAPPDATA\agent-team-pipeline; git pull; .\scripts\install.ps1
-```
+**Model recommendation.** Sonnet for everyday work; Haiku for small, well-specified jobs; Opus for unfamiliar or design-heavy work. Keep to one task per session.
 
-**Uninstalling:**
+**Skills policy.** Skills are loaded sparingly: only when a skill's description clearly matches the current step, once, and never ones that duplicate the agent workflow. Project skills in `.opencode/agents/skills/` are picked up automatically.
 
-Linux/macOS:
-
-```bash
-~/.local/share/agent-team-pipeline/scripts/uninstall.sh
-```
-
-Windows:
-
-```powershell
-& "$env:LOCALAPPDATA\agent-team-pipeline\scripts\uninstall.ps1"
-```
-
-### Usage
-
-> [!NOTE]
-> The install script automatically sets `team-captain` as your default agent. If you installed manually, add `"default_agent": "team-captain"` to your `~/.config/opencode/opencode.json`.
-
-Once installed, just use OpenCode normally. The Captain handles everything:
+## Usage
 
 ```
 > Add a search feature to the users page
-
-# Captain classifies the task (standard), then:
-# 1. Invokes Architect to explore codebase and design the approach
-# 2. Presents the plan to you for approval
-# 3. Invokes Engineer to write the code
-# 4. Invokes Forge to format, build, and test
-# 5. Invokes Inspector for quality + security + over-engineering review
-# 6. Invokes Shipper to commit (if requested)
-# -> Final report with efficiency summary
+# team-captain: short plan -> you approve -> implement -> format + test -> self-review
 ```
 
-**Requesting a commit:**
+Ask for a commit explicitly (`... and commit it`); otherwise nothing is committed.
 
-```
-> Add a search feature to the users page and commit it
-```
+### Commands
 
-The Captain will include the Git step and pass commit instructions to the Shipper.
+- `/format` -- format git-dirty files (or the files you pass).
+- `/ponytail-review` -- over-engineering review of current changes; outputs a Delete List.
+- `/ponytail-audit` -- same, for the whole repository.
 
-**Resuming interrupted work (standard/complex tasks only):**
+### Behaviour
 
-```
-> resume
-```
+- Plans are brief; `team-captain` waits for your approval unless your request says to proceed without questions or approval.
+- Optional persistent memory (e.g. [Engram](https://github.com/Gentleman-Programming/engram)): used only if `mem_*` tools exist, in 2-3 lines of prompt.
 
-The Captain checks for `.opencode/resume.md` in the project root and offers to continue from where it left off.
+Inspired by [Ponytail](https://github.com/DietrichGebert/ponytail) by Dietrich Gebert (MIT): minimal diff, reuse before writing, no speculative abstractions.
 
-**Trivial edits are fast:**
+See [docs/DESIGN.md](docs/DESIGN.md) for the design rationale.
 
-```
-> Fix the typo in the header on the dashboard page
-```
+## Benchmark
 
-The Captain handles the edit directly (no Architect or Engineer needed), but still invokes the Forge to run tests.
+Mean USD per run (15 tasks × 3 reps per setup, hidden tests, 100% pass rate for all):
 
-### Custom Commands
+| Category | Old pipeline (6 agents) | Plain Opus | team-captain (new, single agent; called team-solo during benchmarking) |
+| -------- | ----------------------: | ---------: | ---------------------------------------------------------------------: |
+| trivial  |                  $0.234 |     $0.145 |                                                                 $0.148 |
+| simple   |                  $0.446 |     $0.226 |                                                                 $0.198 |
+| standard |                  $0.683 |     $0.393 |                                                                 $0.369 |
+| complex  |                  $0.707 |     $0.424 |                                                                 $0.356 |
+| hard     |                  $0.668 |     $0.368 |                                                                 $0.335 |
+| **All**  |              **$0.548** | **$0.311** |                                                             **$0.281** |
 
-The pipeline includes a `/format` command that runs only the Forge's formatting phase on your modified files. Use it when you want to format code without running the full pipeline:
+Full tables, method and caveats: [docs/benchmark-results.md](docs/benchmark-results.md). How to run it: [benchmark/README.md](benchmark/README.md).
 
-```
-/format
-```
+Reproduce (paid runs): `benchmark/scripts/run-all.sh`
 
-This will detect your project's formatters and run them on all git-dirty files. You can also pass specific files as arguments.
+## Changelog
 
-The `/ponytail-review` command runs only the Inspector's over-engineering pass on your current changes (including untracked files) and outputs a Delete List. Use `/ponytail-audit` to scan the whole repo:
+### 2026-10-13 (v6)
 
-```
-/ponytail-review
-/ponytail-audit
-```
+**Changed**
 
-### How It Behaves
+- `team-captain`: `task: allow` plus a delegation rule (work alone by default; subagent only when a skill requires it or a job reads far more than it returns).
+- Built-in `explore` subagent now runs on Haiku: the installers set `agent.explore.model = github-copilot/claude-haiku-5.5` only if you have none, and the uninstallers remove it only if it is unchanged. Non-Copilot users should change or remove this setting.
+- Stricter verify: always format every changed file, even for one-line changes.
 
-- **You talk to the Captain only.** The 5 subagents are hidden from the `@` autocomplete -- they're invoked automatically.
-- **The Captain will ask clarifying questions** if your request is vague or has trade-offs. One question at a time, up to 10 total, framed as choices.
-- **After planning, you approve the plan.** The Captain presents the Architect's plan (classification, files, steps, risks) and waits for your approval before writing any code. You can approve, adjust, or reject.
-- **If something fails**, the Captain retries or routes to the Engineer for fixes. It will never silently swallow errors.
-- **The final report** tells you exactly what happened: steps run, steps skipped, issues found, invocation count, and efficiency breakdown.
+**Evidence** (real-repo benchmark on two internal Go+React projects: 117 runs, $14.97; 1-2 reps, planted bugs)
 
-### Customization
+- Delegation was used in 0/31 runs when optional, so the rule costs nothing when unneeded.
+- Haiku passed 10/10 at about $0.011/run; Sonnet about $0.11; Opus about $0.30.
+- The missed `gofmt` was fixed in 8/8 runs.
 
-**Adjust pipeline budgets** -- Edit the Pipeline Budget section in `team-captain.md` if the default caps (trivial: 3, simple: 6, standard: 8, complex: 12) are too tight or too loose for your workflow.
+### 2026-10-13
 
-**Add project-specific skills** -- Place skill files in your project's `.opencode/agents/skills/` directory. The agents will pick them up automatically for technology-specific guidance (e.g., Laravel, React, Rust conventions).
+**Changed**
 
-**Change model tiers** -- Swap models in agent frontmatter to match your budget. For example, use Sonnet everywhere for lower cost, or Opus everywhere for maximum quality. Note that `team-captain.md` and `team-architect.md` have no `model:` key on purpose -- they follow whatever model you have selected in OpenCode. Add a `model:` line to either if you want to pin them explicitly.
+- `team-captain` is now a single agent (the former multi-agent orchestrator was replaced). Prompt size: 1056 lines across six agents → 40 in one file.
 
-**Optional: Persistent memory** -- If you use a persistent memory MCP plugin like [Engram](https://github.com/Gentleman-Programming/engram), the Captain will automatically query prior session context before invoking the Architect. This reduces redundant codebase exploration on follow-up tasks, saving tokens. The pipeline works fully without it — no configuration needed if you don't use memory tools.
+**Added**
 
-## Ponytail Principles
+- `benchmark/` cost benchmark (15 tasks, hidden tests) and [docs/benchmark-results.md](docs/benchmark-results.md).
 
-The Architect and Engineer use a "least code that works" ladder (need it? / reuse codebase / stdlib / native platform / installed dep / one line / minimum new code):
+**Removed**
 
-- **Architect** records a Ladder Result and Scope Challenge (inferred extras only, never explicit requirements)
-- **Engineer** writes the minimal diff; deliberate corner-cuts get a `ponytail: <ceiling>; upgrade: <path>` comment
-- **Forge** adds one small check for each non-trivial unit of logic, using existing test infrastructure
-- **Inspector** runs an Over-Engineering Pass and emits a Delete List; the Captain verifies high-priority fixes in a follow-up review
+- `team-architect`, `team-engineer`, `team-forge`, `team-inspector`, `team-shipper` (kept for the benchmark in `benchmark/legacy-agents/`).
 
-Inspired by [Ponytail](https://github.com/DietrichGebert/ponytail) by Dietrich Gebert (MIT).
+**Migration**
 
-## The Pipeline
-
-Every task flows through a strict sequential pipeline. The Captain never skips ahead -- each step must complete before the next begins.
-
-```
-1. PLAN+EXPLORE  -> Architect       Understand the problem, explore code, design solution
-── USER APPROVAL GATE ──            Present plan to user, wait for approval
-2. IMPLEMENT     -> Engineer        Write the code following the plan
-3. BUILD+TEST    -> Forge           Format, build, run tests, fix test files
-4. REVIEW        -> Inspector       Quality + security + over-engineering review
-5. GIT           -> Shipper         Commit, push, check CI
-```
-
-Tasks are classified into 4 tiers (trivial, simple, standard, complex), and the pipeline adapts -- trivial tasks skip the Architect (the Captain handles them directly) and may skip review.
-
-After the Architect delivers its plan, the Captain **always presents the plan to the user for approval** before any code is written. The user can approve, adjust, or reject. This prevents wasted tokens on wrong implementations and keeps the user in control of architectural decisions.
-
-When tests fail or the reviewer finds critical issues, a **remediation loop** kicks in: failures route back to the Engineer for fixes, then re-run validation. The Captain never fixes code itself -- it purely orchestrates.
-
-### Remediation Flow
-
-```mermaid
-flowchart TD
-    A[BUILD + TEST] --> B{PASS?}
-    B -- Yes --> C[REVIEW]
-    B -- No --> D[ENGINEER fix]
-    D --> E[BUILD + TEST re-verify]
-    E --> F{PASS again?}
-    F -- Yes --> C
-    F -- No --> G[(Max 2 cycles)]
-    C --> H[GIT]
-```
-
-> For the design philosophy, cost optimization strategies, and evolution from single-agent to 6-agent pipeline, see [docs/DESIGN.md](docs/DESIGN.md).
-
-## Architecture Overview
-
-```mermaid
-graph TD
-    UserRequest([User Request]) --> Captain
-
-    subgraph " "
-    Captain["<b>CAPTAIN</b><br/>(inherits your default)<br/>Classifies task, orchestrates pipeline,<br/>compresses context between steps"]
-
-    Architect["<b>ARCHITECT</b><br/>(inherits your default)<br/>Explore codebase, analyze requirements,<br/>design architecture (conditional depth)"]
-
-    Gate["<b>APPROVAL GATE</b><br/>(user decides)<br/>Captain presents plan to user.<br/>Approve / Adjust / Reject"]
-
-    Engineer["<b>ENGINEER</b><br/>(Sonnet)<br/>Write/edit code, update docs<br/>-- also handles remediation fixes"]
-
-    Forge["<b>FORGE</b><br/>(Sonnet)<br/>Format, build, test, fix test files<br/>-- loops back to engineer on failure"]
-
-    Inspector["<b>INSPECTOR</b><br/>(Sonnet)<br/>Code quality + OWASP security audit<br/>-- critical/high findings loop back"]
-
-    Shipper["<b>SHIPPER</b><br/>(Haiku 4.5)<br/>Commit, push, CI analysis"]
-    end
-
-    Captain -- "Simple / Standard / Complex" --> Architect
-    Captain -- "Trivial (self-handle)" --> Forge
-
-    Architect --> Gate
-    Gate --> Engineer
-    Engineer --> Forge
-    Forge --> Inspector
-    Inspector --> Shipper
-
-    Shipper --> Report([Final Report + Efficiency Summary])
-```
+- None needed for `default_agent` (still `team-captain`); reinstall/update picks up the new file. Remove references to the removed agents from custom configs.

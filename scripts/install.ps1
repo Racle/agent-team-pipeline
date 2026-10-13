@@ -55,19 +55,24 @@ $OpenCodeJson = Join-Path $ConfigDir "opencode.json"
 if (Test-Path $OpenCodeJson) {
     $config = Get-Content $OpenCodeJson -Raw | ConvertFrom-Json
     $config | Add-Member -NotePropertyName "default_agent" -NotePropertyValue "team-captain" -Force
+    $ExploreModel = "github-copilot/claude-haiku-5.5"
+    if (-not $config.agent) { $config | Add-Member -NotePropertyName "agent" -NotePropertyValue ([pscustomobject]@{}) -Force }
+    if (-not $config.agent.explore) { $config.agent | Add-Member -NotePropertyName "explore" -NotePropertyValue ([pscustomobject]@{}) -Force }
+    if (-not $config.agent.explore.model) { $config.agent.explore | Add-Member -NotePropertyName "model" -NotePropertyValue $ExploreModel -Force }
     $config | ConvertTo-Json -Depth 10 | Set-Content $OpenCodeJson -Encoding UTF8
-    Write-Host "Updated opencode.json: default_agent set to team-captain"
+    Write-Host "Updated opencode.json: default_agent set to team-captain; agent.explore.model defaults to github-copilot/claude-haiku-5.5 (kept if already set)"
 } else {
     @{
         '$schema' = "https://opencode.ai/config.json"
         'default_agent' = "team-captain"
-    } | ConvertTo-Json | Set-Content $OpenCodeJson -Encoding UTF8
+        'agent' = @{ explore = @{ model = "github-copilot/claude-haiku-5.5" } }
+    } | ConvertTo-Json -Depth 10 | Set-Content $OpenCodeJson -Encoding UTF8
     Write-Host "Created $OpenCodeJson with default_agent: team-captain"
 }
 
 Write-Host ""
 Write-Host "Installation complete!"
 Write-Host ""
-Write-Host "Usage: just open any project with OpenCode - the Captain agent is now your default."
+Write-Host "Usage: just open any project with OpenCode - the Solo agent is now your default."
 Write-Host "Update: cd $InstallDir; git pull; .\scripts\install.ps1"
 Write-Host "Uninstall: & `"$InstallDir\scripts\uninstall.ps1`""

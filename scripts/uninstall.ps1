@@ -12,15 +12,14 @@ if ($env:HOME -and (Test-Path (Join-Path $env:HOME ".config"))) {
 $AgentsDir = Join-Path $ConfigDir "agents"
 $CommandsDir = Join-Path $ConfigDir "commands"
 
-# Remove agents and commands directories
-if (Test-Path $AgentsDir) {
-    Remove-Item $AgentsDir -Recurse -Force
-    Write-Host "Removed agents directory"
-}
 
-if (Test-Path $CommandsDir) {
-    Remove-Item $CommandsDir -Recurse -Force
-    Write-Host "Removed commands directory"
+# Only remove if it is our junction/link (mirrors uninstall.sh)
+foreach ($d in @($AgentsDir, $CommandsDir)) {
+    $item = Get-Item $d -Force -ErrorAction SilentlyContinue
+    if ($item -and $item.LinkType -and ("$($item.Target)" -like "*agent-team-pipeline*")) {
+        $item.Delete()
+        Write-Host "Removed $(Split-Path $d -Leaf) link"
+    }
 }
 
 # Restore backups if they exist
@@ -40,11 +39,21 @@ if ($LatestCommandsBak -and -not (Test-Path $CommandsDir)) {
 $OpenCodeJson = Join-Path $ConfigDir "opencode.json"
 if (Test-Path $OpenCodeJson) {
     $config = Get-Content $OpenCodeJson -Raw | ConvertFrom-Json
-    if ($config.default_agent -eq "team-captain") {
+    $changed = $false
+    if ($config.default_agent -in @("team-captain", "team-solo")) {
         $config.PSObject.Properties.Remove("default_agent")
-        $config | ConvertTo-Json -Depth 10 | Set-Content $OpenCodeJson -Encoding UTF8
         Write-Host "Removed default_agent from opencode.json"
+        $changed = $true
     }
+    # Remove the explore model only if it is still the value the installer set
+    if ($config.agent.explore.model -eq "github-copilot/claude-haiku-5.5") {
+        $config.agent.explore.PSObject.Properties.Remove("model")
+        if (-not @($config.agent.explore.PSObject.Properties).Count) { $config.agent.PSObject.Properties.Remove("explore") }
+        if (-not @($config.agent.PSObject.Properties).Count) { $config.PSObject.Properties.Remove("agent") }
+        Write-Host "Removed agent.explore.model from opencode.json"
+        $changed = $true
+    }
+    if ($changed) { $config | ConvertTo-Json -Depth 10 | Set-Content $OpenCodeJson -Encoding UTF8 }
 }
 
 # Optionally remove cloned repo
