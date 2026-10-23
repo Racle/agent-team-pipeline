@@ -66,8 +66,21 @@ Ask for a commit explicitly (`... and commit it`); otherwise nothing is committe
 - `/ponytail-review` -- over-engineering review of current changes; outputs a Delete List.
 - `/ponytail-audit` -- same, for the whole repository.
 
+### Matt Pocock skills (optional, recommended)
+
+[Matt Pocock's skills](https://www.aihero.dev/skills) work with `team-captain`; install them (the install script reminds you if they are missing):
+
+```bash
+npx skills@latest add mattpocock/skills
+```
+
+Main flow: `/grill-with-docs` -> `/implement` (small), or "use to-spec" -> "use to-tickets" -> `/implement` per ticket. Run "use setup-matt-pocock-skills" once per repo first. Any other skill works the same way: ask the agent to use it by name.
+
+Two wrapper commands adapt the skills: `/grill-with-docs` asks via OpenCode's `question` tool and ends with a summary and next step; `/implement` never commits (it offers the commit at the end) and reviews uncommitted changes. The agent also uses the `question` tool for any skill's questions.
+
 ### Behaviour
 
+- Non-trivial requests start with one round of decision questions (`question` tool, recommended option first). Say "no questions" to skip.
 - Plans are brief; `team-captain` waits for your approval unless your request says to proceed without questions or approval.
 - Optional persistent memory (e.g. [Engram](https://github.com/Gentleman-Programming/engram)): used only if `mem_*` tools exist, in 2-3 lines of prompt.
 

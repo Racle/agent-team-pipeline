@@ -70,6 +70,14 @@ if (Test-Path $OpenCodeJson) {
     Write-Host "Created $OpenCodeJson with default_agent: team-captain"
 }
 
+# Remind about optional Matt Pocock skills used by the flow commands (/grill-with-docs, /implement, ...)
+$SkillDirs = @((Join-Path $HOME ".agents/skills"), (Join-Path $ConfigDir "skills"), (Join-Path $HOME ".claude/skills"))
+if (-not ($SkillDirs | Where-Object { Test-Path (Join-Path $_ "grilling/SKILL.md") })) {
+    Write-Host ""
+    Write-Host "Optional: install Matt Pocock's skills for /grill-with-docs, /implement and friends:"
+    Write-Host "  npx skills@latest add mattpocock/skills"
+}
+
 Write-Host ""
 Write-Host "Installation complete!"
 Write-Host ""

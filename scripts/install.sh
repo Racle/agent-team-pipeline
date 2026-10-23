@@ -84,6 +84,17 @@ if ! echo "$PATH" | tr ':' '\n' | grep -q "$HOME/.local/bin"; then
   echo "WARNING: ~/.local/bin is not on your PATH. Add it to use 'agent-team-update'."
 fi
 
+# Remind about optional Matt Pocock skills used by the flow commands (/grill-with-docs, /implement, ...)
+found=""
+for d in "$HOME/.agents/skills" "$CONFIG_DIR/skills" "$HOME/.claude/skills"; do
+  [ -f "$d/grilling/SKILL.md" ] && found=1
+done
+if [ -z "$found" ]; then
+  echo ""
+  echo "Optional: install Matt Pocock's skills for /grill-with-docs, /implement and friends:"
+  echo "  npx skills@latest add mattpocock/skills"
+fi
+
 echo ""
 echo "Installation complete!"
 echo ""
