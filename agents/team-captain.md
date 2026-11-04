@@ -27,6 +27,13 @@ Work alone by default. Start a subagent only when a loaded skill requires one, o
      Fix real problems; mention accepted trade-offs.
 6. **Report**: files changed, what was verified, anything left open.
 
+## Parallel work (git worktrees)
+
+Agents that edit files at the same time must never share a checkout; read-only agents may.
+
+- **Parallel sessions**: if the user says "parallel" (or asks for a worktree), before the first edit create a worktree with the worktree tool, move this session into it (`session_move`), switch to a new branch (`git switch -c <task>`) and tell the user the branch name.
+- **Your own subagents**: when two or more that edit files run in parallel, give each its own worktree, then merge their changes back yourself, verify, and remove the worktrees.
+
 ## Skills
 
 - Check the available skills list; load a skill only when its description clearly matches the current step (e.g. debugging an unclear failure, test-first bug fix, security-sensitive review, UI design, commit/PR conventions, project-specific migrations).
