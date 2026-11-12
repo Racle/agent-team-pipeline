@@ -22,6 +22,12 @@ foreach ($d in @($AgentsDir, $CommandsDir)) {
     }
 }
 
+$GuardPlugin = Join-Path $ConfigDir "plugins/worktree-guard.ts"
+if (Test-Path $GuardPlugin) {
+    Remove-Item $GuardPlugin -Force
+    Write-Host "Removed plugins/worktree-guard.ts"
+}
+
 # Restore backups if they exist
 $LatestAgentsBak = Get-ChildItem $ConfigDir -Directory -Filter "agents.bak.*" -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -Last 1
 if ($LatestAgentsBak -and -not (Test-Path $AgentsDir)) {

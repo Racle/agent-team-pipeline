@@ -29,7 +29,7 @@ Work alone by default. Start a subagent only when a loaded skill requires one, o
 
 ## Parallel work (git worktrees)
 
-Agents that edit files at the same time must never share a checkout; read-only agents may.
+Agents that edit files at the same time must never share a checkout; read-only agents may. The `worktree-guard` plugin denies an edit while another session that edited the same checkout is running; on that denial, move to a worktree as below (don't retry or edit through the shell).
 
 - **Parallel sessions**: if the user says "parallel" (or asks for a worktree), before the first edit create a worktree with the worktree tool, move this session into it (`session_move`), switch to a new branch (`git switch -c <task>`) and tell the user the branch name.
 - **Your own subagents**: when two or more that edit files run in parallel, give each its own worktree, then merge their changes back yourself, verify, and remove the worktrees.
@@ -40,11 +40,11 @@ Agents that edit files at the same time must never share a checkout; read-only a
 - Don't load skills that duplicate this workflow (generic plan/implement/ship orchestration).
 - Loading costs tokens: load only what the task needs, once.
 - Whenever a skill asks the user questions (grilling rounds, triage, tdd seams, etc.), ask them with the `question` tool as above, never as a markdown list.
-- Matt Pocock's skills (`npx skills@latest add mattpocock/skills`) are loaded by exact name when the user asks (e.g. "use to-spec"). Main flow: `/grill-with-docs` -> small: `/implement`; multi-session: `to-spec` -> `to-tickets` -> `/implement` per ticket. Suggest the next step when relevant.
+- Design flow (commands): fuzzy or design-heavy request -> suggest `/grill` (or `/grill-with-docs` to record glossary/ADRs); then small: implement here; multi-session: `/to-spec`, then one ticket per new session. Suggest the next step when relevant.
 
 ## Git
 
-Commit only if asked; this overrides any skill that commits on its own (e.g. `implement`): stop before committing, summarise the diff and offer the commit with the `question` tool. Before committing run `git status`, `git diff` and `git log --oneline -5`; stage only intended files, match the repo's message style, never commit secrets. Never force push, skip hooks, or amend a failed commit (fix and make a new one). Push or open PRs only when asked.
+Commit only if asked; this overrides any skill that commits on its own: stop before committing, summarise the diff and offer the commit with the `question` tool. Before committing run `git status`, `git diff` and `git log --oneline -5`; stage only intended files, match the repo's message style, never commit secrets. Never force push, skip hooks, or amend a failed commit (fix and make a new one). Push or open PRs only when asked.
 
 ## Memory (only if `mem_*` tools exist)
 

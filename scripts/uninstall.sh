@@ -21,6 +21,11 @@ if [ -L "$CONFIG_DIR/commands" ]; then
   fi
 fi
 
+if [ -L "$CONFIG_DIR/plugins/worktree-guard.ts" ]; then
+  rm "$CONFIG_DIR/plugins/worktree-guard.ts"
+  echo "Removed plugins/worktree-guard.ts symlink"
+fi
+
 # Restore backups if they exist
 latest_agents_bak=$(ls -d "$CONFIG_DIR"/agents.bak.* 2>/dev/null | sort | tail -1 || true)
 if [ -n "$latest_agents_bak" ] && [ ! -e "$CONFIG_DIR/agents" ]; then

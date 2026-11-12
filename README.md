@@ -65,18 +65,15 @@ Ask for a commit explicitly (`... and commit it`); otherwise nothing is committe
 - `/format` -- format git-dirty files (or the files you pass).
 - `/ponytail-review` -- over-engineering review of current changes; outputs a Delete List.
 - `/ponytail-audit` -- same, for the whole repository.
+- `/grill` -- interview you about a plan in rounds (`question` tool, recommended option first) until no decision is left open, then offer the next step.
+- `/grill-with-docs` -- same, and records settled terms in `GLOSSARY.md` and hard-to-reverse decisions as ADRs in `docs/adr/`.
+- `/to-spec` -- turn the agreed plan into `docs/specs/<slug>.md` (goal, decisions, acceptance criteria, ordered tickets with blockers) for work spanning several sessions.
 
-### Matt Pocock skills (optional, recommended)
+Flow: fuzzy idea -> `/grill` -> small: implement in the same session; big: `/to-spec`, then "Implement ticket 1 of docs/specs/<slug>.md" in a fresh session per ticket. All three are self-contained prompts; no external skills needed. Other installed skills (e.g. [Matt Pocock's](https://www.aihero.dev/skills)) still work: ask the agent to use one by name. Skills marked `disable-model-invocation: true` are hidden from the agent, so use their slash command instead.
 
-[Matt Pocock's skills](https://www.aihero.dev/skills) work with `team-captain`; install them (the install script reminds you if they are missing):
+### Plugin: worktree-guard
 
-```bash
-npx skills@latest add mattpocock/skills
-```
-
-Main flow: `/grill-with-docs` -> `/implement` (small), or "use to-spec" -> "use to-tickets" -> `/implement` per ticket. Run "use setup-matt-pocock-skills" once per repo first. Any other skill works the same way: ask the agent to use it by name.
-
-Two wrapper commands adapt the skills: `/grill-with-docs` asks via OpenCode's `question` tool and ends with a summary and next step; `/implement` never commits (it offers the commit at the end) and reviews uncommitted changes. The agent also uses the `question` tool for any skill's questions.
+`plugins/worktree-guard.ts` (OpenCode V2 server plugin, installed into `~/.config/opencode/plugins/`) denies an edit/write/patch when another **running** session already edited the same git checkout, with a message telling the agent to move into a worktree. Parent/subagent pairs are allowed; parallel sibling subagents are not. State is in memory (no lock files; a restart clears it), it fails open on errors, and it does not see files written by shell commands. OpenCode caches plugin modules, so after an update that changes the plugin run `opencode service restart`. Test: `node --experimental-strip-types --test plugins/*.test.ts`.
 
 ### Behaviour
 
@@ -106,6 +103,21 @@ Full tables, method and caveats: [docs/benchmark-results.md](docs/benchmark-resu
 Reproduce (paid runs): `benchmark/scripts/run-all.sh`
 
 ## Changelog
+
+### 2026-11-12
+
+**Added**
+
+- `/grill`, `/to-spec`: small self-contained design commands (no external skills needed).
+- `plugins/worktree-guard.ts`: denies edits while another running session edits the same checkout. **Existing users:** re-run the installer (`agent-team-update` only pulls, it does not link the new plugin).
+
+**Changed**
+
+- `/grill-with-docs` is self-contained. It used to load Matt Pocock's `grill-with-docs` skill, which is marked `disable-model-invocation` and so hidden from the agent.
+
+**Removed**
+
+- `/implement` (duplicated `team-captain`'s own flow) and the installer's Matt Pocock skills reminder.
 
 ### 2026-10-13 (v6)
 

@@ -47,6 +47,11 @@ ln -s "$REPO_DIR/agents" "$CONFIG_DIR/agents"
 ln -s "$REPO_DIR/commands" "$CONFIG_DIR/commands"
 echo "Symlinked agents and commands to $CONFIG_DIR"
 
+# Link the worktree-guard plugin as a single file so other plugins in plugins/ stay untouched
+mkdir -p "$CONFIG_DIR/plugins"
+ln -sfn "$REPO_DIR/plugins/worktree-guard.ts" "$CONFIG_DIR/plugins/worktree-guard.ts"
+echo "Symlinked plugins/worktree-guard.ts to $CONFIG_DIR/plugins"
+
 # Patch opencode.json
 OPENCODE_JSON="$CONFIG_DIR/opencode.json"
 if [ -f "$OPENCODE_JSON" ]; then
@@ -82,17 +87,6 @@ echo "Created ~/.local/bin/agent-team-update"
 # Check if ~/.local/bin is on PATH
 if ! echo "$PATH" | tr ':' '\n' | grep -q "$HOME/.local/bin"; then
   echo "WARNING: ~/.local/bin is not on your PATH. Add it to use 'agent-team-update'."
-fi
-
-# Remind about optional Matt Pocock skills used by the flow commands (/grill-with-docs, /implement, ...)
-found=""
-for d in "$HOME/.agents/skills" "$CONFIG_DIR/skills" "$HOME/.claude/skills"; do
-  [ -f "$d/grilling/SKILL.md" ] && found=1
-done
-if [ -z "$found" ]; then
-  echo ""
-  echo "Optional: install Matt Pocock's skills for /grill-with-docs, /implement and friends:"
-  echo "  npx skills@latest add mattpocock/skills"
 fi
 
 echo ""

@@ -50,6 +50,12 @@ Copy-Item -Recurse (Join-Path $InstallDir "agents") $AgentsDir
 Copy-Item -Recurse (Join-Path $InstallDir "commands") $CommandsDir
 Write-Host "Copied agents and commands to $ConfigDir"
 
+# Copy the worktree-guard plugin as a single file so other plugins in plugins/ stay untouched
+$PluginsDir = Join-Path $ConfigDir "plugins"
+New-Item -ItemType Directory -Path $PluginsDir -Force | Out-Null
+Copy-Item (Join-Path $InstallDir "plugins/worktree-guard.ts") $PluginsDir -Force
+Write-Host "Copied plugins/worktree-guard.ts to $PluginsDir"
+
 # Patch opencode.json
 $OpenCodeJson = Join-Path $ConfigDir "opencode.json"
 if (Test-Path $OpenCodeJson) {
@@ -68,14 +74,6 @@ if (Test-Path $OpenCodeJson) {
         'agent' = @{ explore = @{ model = "github-copilot/claude-haiku-5.5" } }
     } | ConvertTo-Json -Depth 10 | Set-Content $OpenCodeJson -Encoding UTF8
     Write-Host "Created $OpenCodeJson with default_agent: team-captain"
-}
-
-# Remind about optional Matt Pocock skills used by the flow commands (/grill-with-docs, /implement, ...)
-$SkillDirs = @((Join-Path $HOME ".agents/skills"), (Join-Path $ConfigDir "skills"), (Join-Path $HOME ".claude/skills"))
-if (-not ($SkillDirs | Where-Object { Test-Path (Join-Path $_ "grilling/SKILL.md") })) {
-    Write-Host ""
-    Write-Host "Optional: install Matt Pocock's skills for /grill-with-docs, /implement and friends:"
-    Write-Host "  npx skills@latest add mattpocock/skills"
 }
 
 Write-Host ""

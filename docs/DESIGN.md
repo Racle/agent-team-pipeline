@@ -24,6 +24,8 @@ The cost gap is driven by cache writes (A/C = 1.95x): each subagent starts a new
 - **Language agnostic.** Prompts use universal concepts (formatter, test runner); project skills and config carry technology specifics.
 - **Sparing skill use.** Agents load a skill only when its description clearly matches the step, once, and skip workflow-orchestration skills that duplicate the prompt; loading costs tokens.
 - **Optional memory.** If Engram-style `mem_*` tools exist, the agent saves decisions/bugfixes and a session summary; otherwise nothing changes.
+- **Own design commands.** `/grill`, `/grill-with-docs` and `/to-spec` are short self-contained prompts instead of wrappers around external skills: OpenCode hides skills marked `disable-model-invocation` from the agent, and a wrapper adds a dependency for about ten lines of instruction. `/to-spec` merges spec and tickets into one handoff file.
+- **Worktree guard as a plugin, not a git hook.** Git hooks run at commit time, too late to stop two sessions editing one checkout. The plugin hooks permission evaluation for `edit`, so the denial reason reaches the model. It keeps state in memory and checks the other editor's `time.busy`/`time.idle` to decide whether it is still running, so there are no lock files to go stale. Shell writes are not seen; the prompt rule still covers them.
 
 ## Benchmark v2 (real repos)
 
@@ -39,4 +41,4 @@ Nothing to do for `default_agent` (still `team-captain`); re-run the installer o
 
 ## Ponytail
 
-The ponytail rules ("least code that works": need it? reuse codebase? stdlib? one line? minimum new code) are condensed in the agent prompt rather than shared: agent markdown has no include mechanism and `install.sh` only symlinks `agents/` and `commands/`.
+The ponytail rules ("least code that works": need it? reuse codebase? stdlib? one line? minimum new code) are condensed in the agent prompt rather than shared: agent markdown has no include mechanism and `install.sh` only symlinks `agents/`, `commands/` and one plugin file.
