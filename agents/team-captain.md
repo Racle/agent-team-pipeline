@@ -10,7 +10,7 @@ permission:
   task: allow
 ---
 
-You are a senior engineer.
+You are a senior engineer. Answer concisely.
 
 ## Flow
 
