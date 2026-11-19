@@ -60,6 +60,25 @@ type exportDoc struct {
 		ParentID string `json:"parentID"`
 	} `json:"info"`
 	Messages []struct {
+		// OpenCode v2 (2.x) flat message fields; v1 nests them under info/parts.
+		Type    string    `json:"type"`
+		Model2  *modelRef `json:"model"`
+		Tokens2 *tokens   `json:"tokens"`
+		Content []struct {
+			Type  string `json:"type"`
+			Name  string `json:"name"`
+			State struct {
+				Status string `json:"status"`
+				Input  struct {
+					SubagentType string `json:"subagent_type"`
+					Agent        string `json:"agent"`
+				} `json:"input"`
+				Metadata struct {
+					SessionID  string `json:"sessionId"`
+					SessionID2 string `json:"sessionID"`
+				} `json:"metadata"`
+			} `json:"state"`
+		} `json:"content"`
 		Info struct {
 			Role       string    `json:"role"`
 			ProviderID string    `json:"providerID"`
@@ -125,7 +144,7 @@ type usage struct {
 
 type exporter func(id string) ([]byte, error)
 
-// opencodeExport runs `opencode export id` redirecting stdout to a temp file
+// opencodeExport runs `opencode session export id` (OpenCode 2.x; 1.x had `opencode export id`) redirecting stdout to a temp file
 // (not a pipe): piped output was intermittently truncated at 65536 bytes when
 // opencode exited before flushing the pipe.
 func opencodeExport(id string) ([]byte, error) {
@@ -137,7 +156,7 @@ func opencodeExport(id string) ([]byte, error) {
 	defer tmp.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "opencode", "export", id)
+	cmd := exec.CommandContext(ctx, "opencode", "session", "export", id)
 	cmd.Stdout = tmp
 	if err := cmd.Run(); err != nil {
 		return nil, err
@@ -224,6 +243,7 @@ func walkEx(root string, export exporter, onDoc func(id string, raw []byte)) (ma
 			warns = append(warns, fmt.Sprintf("session %s: bad export JSON: %v", id, err))
 			return
 		}
+		normalizeV2(&doc)
 		get := func(k string) *usage {
 			if out[k] == nil {
 				out[k] = &usage{}
@@ -298,6 +318,61 @@ func walkEx(root string, export exporter, onDoc func(id string, raw []byte)) (ma
 	}
 	visit(root, "(root)")
 	return out, info, warns
+}
+
+// normalizeV2 maps OpenCode 2.x export messages ({type, model, tokens, content[]}) onto the 1.x fields
+// (info.role/providerID/modelID/tokens, tool parts) that walkEx reads. 1.x messages are left untouched.
+func normalizeV2(doc *exportDoc) {
+	for i := range doc.Messages {
+		m := &doc.Messages[i]
+		if m.Type == "" || m.Info.Role != "" {
+			continue
+		}
+		m.Info.Role = m.Type
+		if m.Model2 != nil {
+			if m.Type == "user" {
+				m.Info.Model = m.Model2
+			} else {
+				m.Info.ProviderID = m.Model2.ProviderID
+				m.Info.ModelID = m.Model2.ModelID
+				if m.Info.ModelID == "" {
+					m.Info.ModelID = m.Model2.ID
+				}
+			}
+		}
+		if m.Tokens2 != nil {
+			m.Info.Tokens = *m.Tokens2
+		}
+		for _, c := range m.Content {
+			if c.Type != "tool" || (c.Name != "task" && c.Name != "subagent") {
+				continue
+			}
+			var p struct {
+				Type   string  `json:"type"`
+				Tool   string  `json:"tool"`
+				Tokens *tokens `json:"tokens"`
+				State  struct {
+					Status string `json:"status"`
+					Input  struct {
+						SubagentType string `json:"subagent_type"`
+					} `json:"input"`
+					Metadata struct {
+						SessionID string `json:"sessionId"`
+					} `json:"metadata"`
+				} `json:"state"`
+			}
+			p.Type, p.Tool, p.State.Status = "tool", "task", c.State.Status
+			p.State.Input.SubagentType = c.State.Input.SubagentType
+			if p.State.Input.SubagentType == "" {
+				p.State.Input.SubagentType = c.State.Input.Agent
+			}
+			p.State.Metadata.SessionID = c.State.Metadata.SessionID
+			if p.State.Metadata.SessionID == "" {
+				p.State.Metadata.SessionID = c.State.Metadata.SessionID2
+			}
+			m.Parts = append(m.Parts, p)
+		}
+	}
 }
 
 func (u *usage) add(t tokens) {

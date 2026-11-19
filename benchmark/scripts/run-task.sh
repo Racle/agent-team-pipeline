@@ -107,9 +107,11 @@ $SUFFIX"
   sess_args=()
   [[ $t -gt 1 ]] && sess_args=(--session "$session")
   # setsid: own process group so cleanup can kill opencode's children; timeout -k escalates to SIGKILL.
-  setsid timeout -k 30 "$remaining" opencode run \
-    --dir "$wd" --agent "$agent" --model "$MODEL" --format json --title "bench-$run_id" "${sess_args[@]}" \
-    "$prompt" >"$ev" 2>"$out/stderr-$nn.log" &
+  # OpenCode 2.x: no `run --dir` (run in the workdir); --standalone = private server that sees this run's XDG_CONFIG_HOME
+  # (the shared background service would not); --auto = approve permissions instead of waiting for a human.
+  (cd "$wd" && exec setsid timeout -k 30 "$remaining" opencode run --standalone --auto \
+    --agent "$agent" --model "$MODEL" --format json --title "bench-$run_id" "${sess_args[@]}" \
+    "$prompt") >"$ev" 2>"$out/stderr-$nn.log" &
   agent_pid=$!
   rc=0
   wait "$agent_pid" || rc=$?

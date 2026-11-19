@@ -1,0 +1,10 @@
+{"info":{"id":"ses_oc2root","model":{"id":"claude-haiku-5.5","providerID":"github-copilot"}},
+ "messages":[
+  {"type":"user","id":"m1","text":"hi","model":{"id":"claude-haiku-5.5","providerID":"github-copilot"}},
+  {"type":"assistant","id":"m2","model":{"id":"claude-haiku-5.5","providerID":"github-copilot"},
+   "tokens":{"input":4,"output":86,"reasoning":0,"cache":{"read":0,"write":27757}},
+   "content":[{"type":"tool","name":"subagent","state":{"status":"completed","input":{"agent":"explore"},"metadata":{"sessionID":"ses_oc2child"}}}]},
+  {"type":"assistant","id":"m3","model":{"id":"claude-haiku-5.5","providerID":"github-copilot"},
+   "tokens":{"input":2,"output":17,"reasoning":0,"cache":{"read":27757,"write":104}},"content":[{"type":"text","text":"done"}]},
+  {"type":"idle","id":"m4"}
+ ]}

@@ -326,3 +326,23 @@ func TestModeRankOrdersVariants(t *testing.T) {
 		t.Fatalf("order = %v", got)
 	}
 }
+
+func TestWalkOpenCode2Export(t *testing.T) {
+	exp := func(id string) ([]byte, error) {
+		return os.ReadFile("testdata/" + strings.Replace(id, "ses_oc2", "oc2-", 1) + ".json")
+	}
+	per, info, warns := walkEx("ses_oc2root", exp, nil)
+	if len(warns) != 0 {
+		t.Fatalf("unexpected warnings: %v", warns)
+	}
+	u := per["github-copilot/claude-haiku-5.5"]
+	if u == nil || u.Requests != 3 || u.UserPrompts != 1 || u.Input != 7 || u.Output != 108 || u.CacheRead != 27757 || u.CacheW != 27871 {
+		t.Fatalf("usage: %+v (all: %v)", u, per)
+	}
+	if info.TaskExplore != 1 || info.PeakCtx != 27863 {
+		t.Fatalf("info: %+v", info)
+	}
+	if s := info.Sub["github-copilot/claude-haiku-5.5"]; s == nil || s.Output != 5 {
+		t.Fatalf("sub: %+v", s)
+	}
+}

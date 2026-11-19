@@ -33,7 +33,7 @@ results/                 (gitignored) results.csv, report.md, report-full.md, ru
 
 ```
 
-Note: `../agents/team-captain.md` now equals `variants/v6/team-captain.md`; `variants/v0` is kept as the historical baseline (the old `task: deny` agent), so it no longer matches `agents/`.
+Note: `../agents/team-captain.md` now equals `variants/v7/team-captain.md` (v7 = current agent incl. worktree/skill rules and the concise-answer directive; v6 = before those; v8 = v7 without the concise-answer lines, the control for measuring it); `variants/v0` is kept as the historical baseline (the old `task: deny` agent), so it no longer matches `agents/`.
 
 ## v2: delegation variants, real-repo tasks, multi-turn sessions
 
